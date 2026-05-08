@@ -17,6 +17,8 @@ use App\Http\Controllers\Warehouse\ShipmentController as WarehouseShipmentContro
 use App\Http\Controllers\Sales\ShipmentController as SalesShipmentController;
 use App\Http\Controllers\Tester\ShipmentController as TesterShipmentController;
 use App\Http\Controllers\Finance\ShipmentController as FinanceShipmentController;
+use App\Http\Controllers\Production\ProductionOrderController as ProductionController;
+use App\Http\Controllers\Production\AuthController as ProductionAuthController;
 
 Route::prefix('admin')
     ->controller(AdminAuthController::class)
@@ -309,4 +311,56 @@ Route::prefix('sales')
                 Route::post('', [SalesShipmentController::class, 'update'])
                     ->middleware('can:shipment.sales.update');
             });
+    });
+
+
+
+    Route::post('/login', [ProductionAuthController::class, 'login']);
+    
+Route::prefix('production')
+     ->middleware(['auth:sanctum', SetLocaleMiddleware::class])
+    ->group(function () {
+
+         Route::post('/logout', [ProductionAuthController::class, 'logout'])
+            ->middleware('permission:production.logout');
+
+            
+             Route::post('/orders/{id}/approve', [ProductionController::class, 'managerDecision'])
+            ->middleware('permission:production.manager.approve');
+
+
+        Route::post('/orders', [ProductionController::class, 'store'])
+            ->middleware('permission:production.create');
+
+            Route::post('/orders/{id}/warehouse-approve', 
+    [ProductionController::class, 'warehouseApprove']
+)->middleware('permission:production.order.warehouse.approve');
+
+Route::post('/orders/{id}/start', [ProductionController::class, 'start'])
+    ->middleware('permission:production.order.start');
+
+    Route::post('/orders/{id}/pause', [ProductionController::class, 'pause'])
+    ->middleware('permission:production.order.pause');
+
+
+    Route::get('/orders/{id}/preview', [ProductionController::class, 'preview'])
+    ->middleware('permission:production.order.view');
+
+Route::post('/orders/{id}/resume', [ProductionController::class, 'resume'])
+    ->middleware('permission:production.order.resume');
+
+Route::post('/orders/{id}/complete', [ProductionController::class, 'complete'])
+    ->middleware('permission:production.order.finish');
+
+   Route::get(
+    'production-orders/material-requests',
+    [ProductionController::class, 'materialRequests']
+)->middleware('permission:production.material.requests.view');
+
+
+Route::post(
+    'production-orders/{id}/send-to-production',
+    [ProductionController::class, 'sendToProduction']  
+)->middleware('permission:production.order.warehouse.approve');
+
     });

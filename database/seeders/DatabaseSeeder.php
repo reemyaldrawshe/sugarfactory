@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             UnitSeeder::class,
             ItemSeeder::class,
             BOMSeeder::class,
+            
         ]);
     }
 }

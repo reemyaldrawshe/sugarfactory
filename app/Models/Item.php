@@ -71,4 +71,9 @@ class Item extends Model implements HasMedia
     {
         return $this->hasMany(BOM::class, 'final_item_id');
     }
+    public function productionOrders()
+{
+    return $this->hasMany(ProductionOrder::class);
+}
+
 }
