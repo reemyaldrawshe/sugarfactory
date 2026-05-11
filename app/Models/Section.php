@@ -17,5 +17,8 @@ class Section extends Model
         return $this->attributes[$nameColumn] ?? $this->attributes['en_name'];
     }
 
-
+ public function items()
+    {
+        return $this->hasMany(Item::class);
+    }
 }

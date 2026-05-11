@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Models;
-
+use App\Models\ProductionOrderLog;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductionOrder extends Model
@@ -11,15 +11,7 @@ class ProductionOrder extends Model
         'quantity',
         'produced_quantity',
         'status',
-        // 'created_by',
-        // 'manager_approved_by',
-        // 'manager_approved_at',
-        // 'warehouse_approved_by',
-        // 'warehouse_approved_at',
-        // 'started_at',
-        // 'paused_at',
-        // 'resumed_at',
-        // 'completed_at',
+    
         'notes',
     ];
 
@@ -41,15 +33,17 @@ class ProductionOrder extends Model
         return $this->hasMany(ProductionOrderMaterial::class);
     }
 
-    // 🔗 السجل
-    public function histories()
-    {
-        return $this->hasMany(ProductionOrderHistory::class);
-    }
+   public function logs()
+{
+    return $this->hasMany(
+        ProductionOrderLog::class
+    );
+}
 
     // 🔗 المنشئ
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
 }

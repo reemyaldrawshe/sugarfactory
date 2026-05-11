@@ -20,7 +20,9 @@ class DatabaseSeeder extends Seeder
             SectionSeeder::class,
             UnitSeeder::class,
             ItemSeeder::class,
-            BOMSeeder::class,
+             ShipmentSeeder::class,
+             BOMSeeder::class,
+             ProductionOrderSeeder::class,
             
         ]);
     }

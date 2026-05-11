@@ -13,7 +13,7 @@ use App\Http\Requests\Production\WarehouseApproveProductionOrderRequest;
  use App\Http\Requests\Production\CompleteProductionOrderRequest;
  use App\Http\Requests\Production\SendMaterialsToProductionRequest;
  use App\Http\Requests\Production\MaterialRequestsRequest;
- 
+ use App\Http\Requests\Production\AllProductionOrdersRequest;
 
 class ProductionOrderController extends Controller
 {
@@ -192,9 +192,193 @@ public function materialRequests(
     MaterialRequestsRequest $request
 )
 {
+    $data = $this->service->materialRequests();
+
     return response()->json([
+
         'status' => true,
-        'data' => $this->service->materialRequests()
+
+        'data' => [
+
+            /*
+            ==========================================
+            1️⃣ الطلبات الجديدة
+            ==========================================
+            */
+            'new_requests' => collect(
+                $data['new_requests']
+            )->map(function ($order) {
+
+                $boms = \App\Models\BOM::with(
+                    'basicItem.section'
+                )
+                ->where('final_item_id', $order->item_id)
+                ->get();
+
+                return [
+
+                    'order_id' => $order->id,
+
+                    'product_name' =>
+                        $order->item->name ?? null,
+
+                    'product_section' =>
+                        $order->item->section->ar_name ?? null,
+
+                    'required_quantity' =>
+                        $order->quantity,
+
+                    'status' => $order->status,
+
+                  
+                ];
+            }),
+
+            /*
+            ==========================================
+            2️⃣ قيد التحضير
+            ==========================================
+            */
+            'preparing' => collect(
+                $data['preparing']
+            )->map(function ($order) {
+
+                return [
+
+                    'order_id' => $order->id,
+
+                    'product_name' =>
+                        $order->item->name ?? null,
+
+                    'product_section' =>
+                        $order->item->section->ar_name ?? null,
+
+                    'required_quantity' =>
+                        $order->quantity,
+
+                    'status' => $order->status,
+
+                    'materials' =>
+                        $order->materials->map(function ($material) {
+
+                            return [
+
+                                'material_name' =>
+                                    $material->item->name ?? null,
+
+                                'material_section' =>
+                                    $material->item->section->ar_name ?? null,
+
+                                'required_quantity' =>
+                                    $material->required_quantity,
+
+                                'consumed_quantity' =>
+                                    $material->consumed_quantity,
+
+                                'batch' => [
+
+                                    'batch_id' =>
+                                        $material->shipmentItem->id ?? null,
+
+                                    'taken_quantity' =>
+                                        $material->consumed_quantity,
+
+                                    'batch_quantity_before' =>
+                                        ($material->shipmentItem->quantity_received ?? 0)
+                                        + $material->consumed_quantity,
+
+                                    'remaining_in_batch' =>
+                                        $material->shipmentItem->quantity_received ?? 0,
+
+                                    'received_at' =>
+                                        $material->shipmentItem->created_at ?? null,
+
+                                    'expiry_date' =>
+                                        $material->shipmentItem->expiry_date ?? null,
+                                ],
+                            ];
+                        }),
+                ];
+            }),
+
+            /*
+            ==========================================
+            3️⃣ تم التسليم للإنتاج
+            ==========================================
+            */
+            'delivered' => collect(
+                $data['delivered']
+            )->map(function ($order) {
+
+                return [
+
+                    'order_id' => $order->id,
+
+                    'product_name' =>
+                        $order->item->name ?? null,
+
+                    'product_section' =>
+                        $order->item->section->ar_name ?? null,
+
+                    'required_quantity' =>
+                        $order->quantity,
+
+                    'produced_quantity' =>
+                        $order->produced_quantity,
+
+                    'status' => $order->status,
+
+                    'materials' =>
+                        $order->materials->map(function ($material) {
+
+                            return [
+
+                                'material_name' =>
+                                    $material->item->name ?? null,
+
+                                'material_section' =>
+                                    $material->item->section->ar_name ?? null,
+
+                                'consumed_quantity' =>
+                                    $material->consumed_quantity,
+
+                                'batch' => [
+
+                                    'batch_id' =>
+                                        $material->shipmentItem->id ?? null,
+
+                                    'taken_quantity' =>
+                                        $material->consumed_quantity,
+
+                                    'received_at' =>
+                                        $material->shipmentItem->created_at ?? null,
+
+                                    'expiry_date' =>
+                                        $material->shipmentItem->expiry_date ?? null,
+                                ],
+                            ];
+                        }),
+
+                    'delivered_at' =>
+                        $order->updated_at,
+                ];
+            }),
+        ]
+    ]);
+}
+
+
+public function allProductionOrders(
+    AllProductionOrdersRequest $request
+)
+{
+    return response()->json([
+
+        'status' => true,
+
+        'data' => $this->service
+            ->allProductionOrders()
+
     ]);
 }
 }

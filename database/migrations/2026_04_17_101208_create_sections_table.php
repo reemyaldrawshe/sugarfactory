@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('sections', function (Blueprint $table) {
             $table->id();
+            
             $table->string('en_name');
             $table->string('ar_name');
             $table->timestamps();

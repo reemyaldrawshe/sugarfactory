@@ -5,12 +5,13 @@ namespace App\Services\Production;
 use App\Models\ProductionOrder;
 use App\Models\ProductionOrderMaterial;
 use App\Models\Item;
+use App\Models\ProductionOrderLog;
 use App\Models\BOM;
 use App\Models\Shipment;
+use App\Models\Section;
 use App\Models\ShipmentItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Models\ProductionOrderLog;
 use Illuminate\Validation\ValidationException;
 use App\Enums\ProductionLogAction;
 
@@ -30,21 +31,20 @@ private function log($order, $action, $quantity = null, $meta = [])
 
 
     /**
-     * 🏭 إنشاء أمر إنتاج
      */
     public function store(array $data)
     {
-        // 🔍 جلب المادة
+        // جلب المادة
         $item = Item::findOrFail($data['item_id']);
 
-        // ❌ مادة أولية
+        //  مادة أولية
         if ($item->is_raw_material) {
             throw ValidationException::withMessages([
                 'item_id' => ["المادة '{$item->name}' هي مادة أولية ولا يمكن إنشاء أمر إنتاج لها."]
             ]);
         }
 
-        // ❌ ما عنده BOM
+        //  ما عنده BOM
         $bomExists = BOM::where('final_item_id', $item->id)->exists();
 
         if (!$bomExists) {
@@ -65,7 +65,7 @@ $this->log($order, \App\Enums\ProductionLogAction::CREATED->value);
     }
 
     /**
-     * 👨‍💼 موافقة المدير
+  
      */
    
 
@@ -131,7 +131,10 @@ public function warehouseApprove($id, array $data)
         1️⃣ جلب BOM
         ============================================
         */
-        $boms = BOM::where('final_item_id', $order->item_id)->get();
+        $boms = BOM::where(
+            'final_item_id',
+            $order->item_id
+        )->get();
 
         if ($boms->isEmpty()) {
             throw ValidationException::withMessages([
@@ -142,73 +145,141 @@ public function warehouseApprove($id, array $data)
         /*
         ============================================
         2️⃣ تحقق من توفر المخزون
+        (فقط دفعات approved_lab)
         ============================================
         */
         foreach ($boms as $bom) {
 
-            $required = $bom->basic_item_quantity * $order->quantity;
+            $required =
+                $bom->basic_item_quantity
+                * $order->quantity;
 
-            $available = ShipmentItem::where('item_id', $bom->basic_item_id)
+            $available = ShipmentItem::where(
+                    'item_id',
+                    $bom->basic_item_id
+                )
+
+                ->where('quantity_received', '>', 0)
+
+                ->whereHas('shipment', function ($q) {
+                    $q->where(
+                        'status',
+                        \App\Enums\ShipmentStatus::APPROVED_LAB->value
+                    );
+                })
+
                 ->sum('quantity_received');
 
             if ($available < $required) {
+
                 throw ValidationException::withMessages([
-                    'stock' => "المخزون غير كافي للمادة رقم {$bom->basic_item_id}"
+
+                    'stock' =>
+                        "المخزون غير كافي للمادة رقم {$bom->basic_item_id}"
                 ]);
             }
         }
 
         /*
         ============================================
-        3️⃣ صرف المواد FIFO + تسجيل كل دفعة
+        3️⃣ صرف المواد FIFO
+        (حسب الصلاحية + approved_lab فقط)
         ============================================
         */
         foreach ($boms as $bom) {
 
-            $required = $bom->basic_item_quantity * $order->quantity;
+            $required =
+                $bom->basic_item_quantity
+                * $order->quantity;
 
-            // 📦 ترتيب حسب الصلاحية
-            $batches = ShipmentItem::where('item_id', $bom->basic_item_id)
+            /*
+            ============================================
+            📦 جلب الدفعات المسموحة
+            ============================================
+            */
+            $batches = ShipmentItem::where(
+                    'item_id',
+                    $bom->basic_item_id
+                )
+
                 ->where('quantity_received', '>', 0)
+
+                ->whereHas('shipment', function ($q) {
+                    $q->where(
+                        'status',
+                        \App\Enums\ShipmentStatus::APPROVED_LAB->value
+                    );
+                })
+
                 ->orderBy('expiry_date')
                 ->orderBy('created_at')
                 ->get();
 
             foreach ($batches as $batch) {
 
-                if ($required <= 0) break;
+                if ($required <= 0) {
+                    break;
+                }
 
-                $available = $batch->quantity_received;
-                $deduct = min($available, $required);
+                $available =
+                    $batch->quantity_received;
+
+                $deduct = min(
+                    $available,
+                    $required
+                );
 
                 if ($deduct > 0) {
 
                     /*
-                    🔻 1. خصم من المخزون
+                    ============================================
+                    🔻 خصم من المخزون
+                    ============================================
                     */
-                    $batch->decrement('quantity_received', $deduct);
+                    $batch->decrement(
+                        'quantity_received',
+                        $deduct
+                    );
 
                     /*
-                    🔻 2. تسجيل الصرف (من أي دفعة)
+                    ============================================
+                    🧾 تسجيل الصرف
+                    ============================================
                     */
                     ProductionOrderMaterial::create([
-                        'production_order_id' => $order->id,
-                        'item_id' => $bom->basic_item_id,
-                        'shipment_item_id' => $batch->id,
-                        'required_quantity' => $bom->basic_item_quantity * $order->quantity,
-                        'consumed_quantity' => $deduct,
+
+                        'production_order_id' =>
+                            $order->id,
+
+                        'item_id' =>
+                            $bom->basic_item_id,
+
+                        'shipment_item_id' =>
+                            $batch->id,
+
+                        'required_quantity' =>
+                            $bom->basic_item_quantity
+                            * $order->quantity,
+
+                        'consumed_quantity' =>
+                            $deduct,
                     ]);
 
-                    $required -= $deduct;
+                    $deduct -= $required;
                 }
             }
 
             /*
+            ============================================
             🔴 تحقق أمان
+            ============================================
             */
             if ($required > 0) {
+
                 throw ValidationException::withMessages([
-                    'stock' => 'فشل في خصم المخزون بالكامل'
+
+                    'stock' =>
+                        'فشل في خصم المخزون بالكامل'
                 ]);
             }
         }
@@ -219,17 +290,33 @@ public function warehouseApprove($id, array $data)
         ============================================
         */
         $order->update([
-            'status' => 'materials_reserved', // 🔥 أهم نقطة
-            'warehouse_approved_by' => auth()->id(),
-            'warehouse_approved_at' => now(),
-            'notes' => $data['notes'] ?? $order->notes,
+
+            'status' => 'materials_reserved',
+
+            'warehouse_approved_by' =>
+                auth()->id(),
+
+            'warehouse_approved_at' =>
+                now(),
+
+            'notes' =>
+                $data['notes']
+                ?? $order->notes,
         ]);
-         $this->log($order, 'warehouse_reserved');
+
+        /*
+        ============================================
+        📝 تسجيل Log
+        ============================================
+        */
+        $this->log(
+            $order,
+            ProductionLogAction::MATERIALS_RESERVED->value
+        );
 
         return $order;
     });
 }
-
 
 
     public function start($id)
@@ -466,20 +553,138 @@ public function sendToProduction($id, array $data = [])
 public function materialRequests()
 {
     return [
-        'new_requests' => ProductionOrder::where(
-            'status',
-            'approved_by_manager'
-        )->latest()->get(),
 
-        'preparing' => ProductionOrder::where(
-            'status',
-            'materials_reserved'
-        )->latest()->get(),
+        /*
+        ==========================================
+        1️⃣ الطلبات الجديدة
+        ==========================================
+        */
+        'new_requests' => ProductionOrder::with('item.section')
+            ->where('status', 'approved_by_manager')
+            ->latest()
+            ->get(),
 
-        'delivered' => ProductionOrder::where(
-            'status',
-            'ready_to_start'
-        )->latest()->get(),
+        /*
+        ==========================================
+        2️⃣ قيد التحضير
+        ==========================================
+        */
+        'preparing' => ProductionOrder::with([
+              'item.section',
+    'materials.item.section',
+    'materials.shipmentItem'
+            ])
+            ->where('status', 'materials_reserved')
+            ->latest()
+            ->get(),
+
+       
+        'delivered' => ProductionOrder::with([
+                'item.section',
+    'materials.item.section',
+    'materials.shipmentItem'
+            ])
+            ->whereIn('status', [
+                'in_production',
+                'paused',
+                'completed'
+            ])
+            ->latest()
+            ->get(),
     ];
+}
+
+
+public function allProductionOrders()
+{
+    return ProductionOrder::with([
+
+        'item',
+        'materials.item',
+        'materials.shipmentItem',
+        'logs.user',
+        'item.section',
+'materials.item.section',
+
+    ])
+    ->latest()
+    ->get()
+    ->map(function ($order) {
+
+        return [
+
+        
+            'order_id' => $order->id,
+
+            'product_name' =>
+                $order->item->name ?? null,
+
+            'required_quantity' =>
+                $order->quantity,
+
+            'produced_quantity' =>
+                $order->produced_quantity,
+
+            'remaining_quantity' =>
+                $order->quantity
+                - $order->produced_quantity,
+
+            'status' => $order->status,
+
+            'created_at' => $order->created_at,
+'product_section' =>
+    $order->item->section->ar_name ?? null,
+        
+            'materials' => $order->materials->map(function ($material) {
+
+                return [
+
+                    'material_name' =>
+                        $material->item->name ?? null,
+                        'material_section' =>
+    $material->item->section->ar_name ?? null,
+
+                    'required_quantity' =>
+                        $material->required_quantity,
+
+                    'consumed_quantity' =>
+                        $material->consumed_quantity,
+
+                    'batch' => [
+
+                        'batch_id' =>
+                            $material->shipmentItem->id ?? null,
+
+                        'taken_quantity' =>
+                            $material->consumed_quantity,
+
+                        'remaining_in_batch' =>
+                            $material->shipmentItem->quantity_received ?? null,
+
+                        'received_at' =>
+                            $material->shipmentItem->created_at ?? null,
+
+                        'expiry_date' =>
+                            $material->shipmentItem->expiry_date ?? null,
+                    ],
+                ];
+            }),
+
+            // 'logs' => $order->logs->map(function ($log) {
+
+            //     return [
+
+            //         'action' => $log->action,
+
+            //         'user' =>
+            //             $log->user->name ?? null,
+
+            //         'meta' => $log->meta,
+
+            //         'created_at' => $log->created_at,
+            //     ];
+            // }),
+        ];
+    });
 }
 }

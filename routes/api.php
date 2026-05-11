@@ -363,4 +363,10 @@ Route::post(
     [ProductionController::class, 'sendToProduction']  
 )->middleware('permission:production.order.warehouse.approve');
 
+Route::get(
+    'production-orders',
+    [ProductionController::class,
+    'allProductionOrders']
+);
+
     });

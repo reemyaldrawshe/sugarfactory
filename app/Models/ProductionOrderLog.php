@@ -37,10 +37,11 @@ class ProductionOrderLog extends Model
         return $this->belongsTo(User::class);
     }
 
-    /*
-    =========================
-    ثوابت الأكشن (مهم جداً)
-    =========================
-    */
+    public function productionOrder()
+{
+    return $this->belongsTo(
+        ProductionOrder::class
+    );
+}
     
 }
