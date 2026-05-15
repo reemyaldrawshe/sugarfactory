@@ -38,7 +38,7 @@ private function log($order, $action, $quantity = null, $meta = [])
         $item = Item::findOrFail($data['item_id']);
 
         //  مادة أولية
-        if ($item->is_raw_material) {
+        if ($item->is_raw_material == 0) {
             throw ValidationException::withMessages([
                 'item_id' => ["المادة '{$item->name}' هي مادة أولية ولا يمكن إنشاء أمر إنتاج لها."]
             ]);
@@ -69,42 +69,68 @@ $this->log($order, \App\Enums\ProductionLogAction::CREATED->value);
      */
    
 
-   public function managerDecision($id, array $data)
+  public function managerDecision($id, array $data)
 {
     $order = ProductionOrder::findOrFail($id);
 
-    // لازم يكون pending
+    /*
+    |--------------------------------------------------------------------------
+    | لازم يكون الطلب قيد الانتظار
+    |--------------------------------------------------------------------------
+    */
     if ($order->status !== 'pending') {
+
         throw ValidationException::withMessages([
             'status' => 'لا يمكن اتخاذ قرار على طلب غير قيد الانتظار'
         ]);
     }
 
-    $status = $data['status']; // approved / rejected
+    /*
+    |--------------------------------------------------------------------------
+    | الحالة المطلوبة
+    |--------------------------------------------------------------------------
+    */
+    $status = $data['status'];
 
     if (!in_array($status, ['approved', 'rejected'])) {
+
         throw ValidationException::withMessages([
             'status' => 'الحالة يجب أن تكون approved أو rejected'
         ]);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | تحديث الحالة
+    |--------------------------------------------------------------------------
+    */
     $order->update([
+
         'status' => $status === 'approved'
-            ? 'approved_by_manager'
+            ? 'materials_reserved'
             : 'rejected_by_manager',
 
-        'notes' => $data['notes'] ?? $order->notes,
+        'notes' =>
+            $data['notes']
+            ?? $order->notes,
     ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | تسجيل Log
+    |--------------------------------------------------------------------------
+    */
     $this->log(
-    $order,
-    $status === 'approved'
-        ? ProductionLogAction::MANAGER_APPROVED->value
-        : ProductionLogAction::MANAGER_REJECTED->value
-);
+
+        $order,
+
+        $status === 'approved'
+            ? ProductionLogAction::MATERIALS_RESERVED->value
+            : ProductionLogAction::MANAGER_REJECTED->value
+    );
 
     return $order;
 }
-
 
 
 
@@ -120,7 +146,7 @@ public function warehouseApprove($id, array $data)
         0️⃣ تحقق الحالة
         ============================================
         */
-        if ($order->status !== 'approved_by_manager') {
+        if ($order->status !== 'materials_reserved') {
             throw ValidationException::withMessages([
                 'status' => 'يجب موافقة المدير أولاً'
             ]);
@@ -265,7 +291,7 @@ public function warehouseApprove($id, array $data)
                             $deduct,
                     ]);
 
-                    $deduct -= $required;
+                    $required -= $deduct;
                 }
             }
 
@@ -291,7 +317,7 @@ public function warehouseApprove($id, array $data)
         */
         $order->update([
 
-            'status' => 'materials_reserved',
+            'status' => 'sent_to_production',
 
             'warehouse_approved_by' =>
                 auth()->id(),
@@ -324,10 +350,11 @@ public function warehouseApprove($id, array $data)
     $order = ProductionOrder::findOrFail($id);
 
     // ❌ لازم يكون جاهز للإنتاج
-    if ($order->status !== 'ready_to_start') {
+    if ($order->status !== 'started') {
         throw ValidationException::withMessages([
             'status' => 'لا يمكن بدء الإنتاج إلا بعد موافقة المستودع'
         ]);
+
     }
 
     // ❌ إذا بلش قبل
@@ -338,7 +365,7 @@ public function warehouseApprove($id, array $data)
     }
 
     $order->update([
-        'status' => 'in_production',
+        'status' => 'started',
         'started_at' => now(),
         // 'started_by' => auth()->id(),
     ]);
@@ -354,37 +381,64 @@ public function pause($id, array $data)
 
         $order = ProductionOrder::findOrFail($id);
 
-        // ❌ لازم يكون قيد الإنتاج
-        if ($order->status !== 'in_production') {
+        if ($order->status !== 'started') {
             throw ValidationException::withMessages([
                 'status' => 'لا يمكن إيقاف طلب غير مبدوء'
             ]);
         }
 
-        // 📦 إذا في إنتاج جزئي → خزّنه (UPDATE فقط)
         if (!empty($data['produced_quantity']) && $data['produced_quantity'] > 0) {
 
-            // 🔎 جيب سجل موجود لهالمادة
+            $produced = (int) $data['produced_quantity'];
+
+            $remaining = $order->quantity - $order->produced_quantity;
+
+            if ($produced > $remaining) {
+                throw ValidationException::withMessages([
+                    'produced_quantity' => "الكمية المتبقية فقط $remaining"
+                ]);
+            }
+
+            // تحديث المخزون
             $shipmentItem = ShipmentItem::where('item_id', $order->item_id)->first();
 
-            // ❌ إذا ما في سجل
             if (!$shipmentItem) {
                 throw ValidationException::withMessages([
                     'stock' => 'لا يوجد سجل مخزون لهذه المادة لتحديثه'
                 ]);
             }
 
-           ShipmentItem::where('item_id', $order->item_id)
-    ->increment('quantity_received', $data['produced_quantity']);
+            ShipmentItem::where('item_id', $order->item_id)
+                ->increment('quantity_received', $produced);
+
+            // تحديث الإنتاج
+            $order->increment('produced_quantity', $produced);
         }
 
-        // ⏸ إيقاف الطلب
-        $order->update([
-            'status' => 'paused',
-            // 'paused_by' => auth()->id(),
-            'paused_at' => now(),
-        ]);
-$this->log($order, 'pause');
+        // إعادة تحميل القيم بعد التحديث
+        $order->refresh();
+
+        // 🎯 القرار النهائي للحالة
+        if ($order->produced_quantity >= $order->quantity) {
+
+            $order->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+                'paused_at' => null,
+            ]);
+
+            $this->log($order, 'auto_complete');
+
+        } else {
+
+            $order->update([
+                'status' => 'paused',
+                'paused_at' => now(),
+            ]);
+
+            $this->log($order, 'pause');
+        }
+
         return $order;
     });
 }
@@ -435,9 +489,9 @@ public function resume($id)
     }
 
     $order->update([
-        'status' => 'in_production',
+        'status' => 'started',
         'resumed_at' => now(),
-        // 'resumed_by' => auth()->id(),
+    
     ]);
     
  $this->log($order, 'resume');
@@ -452,7 +506,7 @@ public function complete($id, array $data)
 
         $order = ProductionOrder::findOrFail($id);
 
-        if (!in_array($order->status, ['in_production', 'paused'])) {
+        if (!in_array($order->status, ['paused', 'started'])) {
             throw ValidationException::withMessages([
                 'status' => 'غير صالح للإكمال'
             ]);
@@ -462,25 +516,30 @@ public function complete($id, array $data)
 
         if ($produced <= 0) {
             throw ValidationException::withMessages([
-                'produced_quantity' => 'يجب أكبر من 0'
+                'produced_quantity' => 'يجب أن تكون أكبر من 0'
             ]);
         }
 
-        if ($order->produced_quantity + $produced > $order->quantity) {
+        // المتبقي من الكمية
+        $remaining = $order->quantity - $order->produced_quantity;
+
+        if ($produced > $remaining) {
             throw ValidationException::withMessages([
-                'produced_quantity' => 'زيادة غير مسموحة'
+                'produced_quantity' => "الكمية المتبقية فقط $remaining"
             ]);
         }
 
+        // تحديث الإنتاج
         $order->increment('produced_quantity', $produced);
 
-        // تحديث مخزون المنتج النهائي
+        // تحديث المخزون
         ShipmentItem::updateOrCreate(
             ['item_id' => $order->item_id],
             ['quantity_received' => DB::raw("quantity_received + $produced")]
         );
 
-        if ($order->produced_quantity >= $order->quantity) {
+        // إذا اكتمل الطلب
+        if ($order->fresh()->produced_quantity >= $order->quantity) {
 
             $order->update([
                 'status' => 'completed',
@@ -491,17 +550,16 @@ public function complete($id, array $data)
 
         } else {
 
-            $this->log($order, 'partial_complete', $produced);
-
             $order->update([
                 'status' => 'paused'
             ]);
+
+            $this->log($order, 'partial_complete', $produced);
         }
 
         return $order;
     });
 }
-
 
 
 
@@ -514,7 +572,7 @@ public function sendToProduction($id, array $data = [])
     1️⃣ Check Status
     ===========================================
     */
-    if ($order->status !== 'materials_reserved') {
+    if ($order->status !== 'sent_to_production') {
 
         throw ValidationException::withMessages([
             'status' => 'Materials are not reserved yet'
@@ -527,7 +585,7 @@ public function sendToProduction($id, array $data = [])
     ===========================================
     */
     $order->update([
-        'status' => 'ready_to_start',
+        'status' => 'started',
         'notes' => $data['notes'] ?? $order->notes,
     ]);
 
@@ -585,9 +643,7 @@ public function materialRequests()
     'materials.shipmentItem'
             ])
             ->whereIn('status', [
-                'in_production',
-                'paused',
-                'completed'
+                'sent_to_production'
             ])
             ->latest()
             ->get(),
@@ -631,7 +687,7 @@ public function allProductionOrders()
 
             'status' => $order->status,
 
-            'created_at' => $order->created_at,
+            'created_at' => $order->created_at->format('Y-m-d'),
 'product_section' =>
     $order->item->section->ar_name ?? null,
         
@@ -662,28 +718,15 @@ public function allProductionOrders()
                             $material->shipmentItem->quantity_received ?? null,
 
                         'received_at' =>
-                            $material->shipmentItem->created_at ?? null,
+                            $material->shipmentItem->created_at->format('Y-m-d')?? null,
 
                         'expiry_date' =>
-                            $material->shipmentItem->expiry_date ?? null,
+                            $material->shipmentItem->expiry_date ->format('Y-m-d')?? null,
                     ],
                 ];
             }),
 
-            // 'logs' => $order->logs->map(function ($log) {
-
-            //     return [
-
-            //         'action' => $log->action,
-
-            //         'user' =>
-            //             $log->user->name ?? null,
-
-            //         'meta' => $log->meta,
-
-            //         'created_at' => $log->created_at,
-            //     ];
-            // }),
+           
         ];
     });
 }

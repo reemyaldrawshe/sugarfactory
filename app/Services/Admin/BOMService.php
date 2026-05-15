@@ -54,7 +54,7 @@ class BOMService
                 );
             }
 
-            return Item::query()->find($finalItemId);
+      return Item::find($finalItemId);
         });
     }
     public function delete($bom): bool

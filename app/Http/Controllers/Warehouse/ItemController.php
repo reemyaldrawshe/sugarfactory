@@ -5,6 +5,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Warehouse\Item\IndexRequest;
 use App\Http\Requests\Warehouse\Item\StoreRequest;
 use App\Http\Requests\Warehouse\Item\UpdateRequest;
+use App\Http\Requests\Warehouse\SectionsRequest;
+use App\Http\Requests\Warehouse\UnitsRequest;
 use App\Http\Responses\Response;
 use App\Models\Item;
 use App\Services\Warehouse\ItemService;
@@ -20,18 +22,22 @@ class ItemController extends Controller
         $this->itemService = $itemService;
     }
 
-    public function index(IndexRequest $request): JsonResponse
+    public function index(): JsonResponse
     {
         try {
-            $filters = $request->validated();
-            $items = $this->itemService->index($request->validated(), $filters);
+
+            $items = $this->itemService->index();
 
             return Response::Success(
                 $items,
                 __('item.index')
             );
+
         } catch (Throwable $th) {
-            activity('Error: Admin item Index')->log($th);
+
+            activity('Error: Warehouse Item Index')
+                ->log($th->getMessage());
+
             return Response::Error(
                 [],
                 $th->getMessage()
@@ -58,22 +64,27 @@ class ItemController extends Controller
     }
 
     public function show(Item $item): JsonResponse
-    {
-        try {
-            $item = $this->itemService->show($item);
+{
+    try {
 
-            return Response::Success(
-                $item,
-                __('item.found')
-            );
-        } catch (Throwable $th) {
-            activity('Error: Admin item Show')->log($th);
-            return Response::Error(
-                [],
-                $th->getMessage()
-            );
-        }
+        $item = $this->itemService->show($item);
+
+        return Response::Success(
+            $item,
+            __('item.found')
+        );
+
+    } catch (Throwable $th) {
+
+        activity('Error: Warehouse Item Show')
+            ->log($th->getMessage());
+
+        return Response::Error(
+            [],
+            $th->getMessage()
+        );
     }
+}
 
     public function update(UpdateRequest $request, item $item): JsonResponse
     {
@@ -108,5 +119,51 @@ class ItemController extends Controller
             );
         }
     }
+
+
+public function sections(
+    SectionsRequest $request
+): JsonResponse
+{
+    try {
+
+        return Response::Success(
+
+            $this->itemService->sections(),
+
+            'تم جلب الأقسام بنجاح'
+        );
+
+    } catch (Throwable $th) {
+
+        return Response::Error(
+            [],
+            $th->getMessage()
+        );
+    }
+}
+
+
+public function units(
+    UnitsRequest $request
+): JsonResponse
+{
+    try {
+
+        return Response::Success(
+
+            $this->itemService->units(),
+
+            'تم جلب الوحدات بنجاح'
+        );
+
+    } catch (Throwable $th) {
+
+        return Response::Error(
+            [],
+            $th->getMessage()
+        );
+    }
+}
 
 }

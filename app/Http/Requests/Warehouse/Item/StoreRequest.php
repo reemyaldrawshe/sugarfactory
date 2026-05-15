@@ -20,6 +20,9 @@ class StoreRequest extends BaseFormRequest
             'is_raw_material' => 'required|boolean',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'minimum_quantity' => 'integer|min:1',
+            'quantity_received' => 'nullable|integer|min:0',
+'price' => 'nullable|numeric|min:0',
+'expiry_date' => 'nullable|date',
         ];
     }
 }

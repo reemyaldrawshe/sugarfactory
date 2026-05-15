@@ -20,10 +20,13 @@ class ShipmentItem extends Model implements HasMedia
         'expiry_date' => 'date',
     ];
 
-    public function shipment(): BelongsTo
-    {
-        return $this->belongsTo(Shipment::class);
-    }
+    public function shipment()
+{
+    return $this->belongsTo(
+        Shipment::class,
+        'shipment_id'
+    );
+}
 
     public function item(): BelongsTo
     {

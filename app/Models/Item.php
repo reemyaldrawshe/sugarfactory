@@ -15,7 +15,7 @@ class Item extends Model implements HasMedia
 
     protected $guarded = [];
 
-    protected $appends = ['quantity',  'bom'];
+    protected $appends = ['quantity', 'bom'];
 
     protected $hidden = ['media'];
     /*
@@ -30,22 +30,29 @@ class Item extends Model implements HasMedia
         return (int) $this->shipmentItems()->sum('quantity_received');
     }
 
-    public function getBomAttribute(): array
-    {
-        return $this->bomAsFinal()
-            ->with(['basicItem.unit'])
-            ->get()
-            ->map(function ($bom) {
-                return [
-                    'id' => $bom->id,
-                    'item_id' => $bom->basicItem->id,
-                    'item_name' => $bom->basicItem->name,
-                    'unit' => $bom->basicItem->unit->name ?? null,
-                    'quantity' => $bom->basic_item_quantity,
-                ];
-            })
-            ->toArray();
-    }
+   public function getBomAttribute(): array
+{
+    return BOM::with('basicItem.unit')
+        ->where('final_item_id', $this->id)
+        ->get()
+        ->map(function ($bom) {
+
+            return [
+
+                'id' => $bom->id,
+
+                'item_id' => $bom->basic_item_id,
+
+                'item_name' => $bom->basicItem->name ?? null,
+
+                'unit' => $bom->basicItem->unit->name ?? null,
+
+                'quantity' => $bom->basic_item_quantity,
+            ];
+        })
+        ->values()
+        ->toArray();
+}
     /*
     |--------------------------------------------------------------------------
     | Relationships

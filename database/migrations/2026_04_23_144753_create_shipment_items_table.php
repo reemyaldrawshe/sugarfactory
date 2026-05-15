@@ -13,7 +13,13 @@ return new class extends Migration
     {
         Schema::create('shipment_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('shipment_id')->constrained()->cascadeOnDelete();
+           
+        $table->foreignId('shipment_id')
+            ->nullable()
+            ->constrained()
+            ->cascadeOnDelete();
+
+    
             $table->foreignId('item_id')->constrained()->cascadeOnDelete();
             $table->integer('quantity_required');
             $table->integer('quantity_received')->default(0);

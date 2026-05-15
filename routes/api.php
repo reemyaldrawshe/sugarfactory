@@ -205,6 +205,14 @@ Route::prefix('warehouse')
             ->prefix('items')
             ->group(function () {
 
+     Route::get( 'sections',
+    [ItemController::class, 'sections']
+);
+
+          Route::get(
+           'units',
+           [ItemController::class, 'units']
+);
                 Route::post('/', 'store')
                     ->name('item.store')
                    ->middleware('can:item.store');
@@ -224,6 +232,11 @@ Route::prefix('warehouse')
                 Route::delete('/{item}', 'destroy')
                     ->name('item.destroy')
                     ->middleware('can:item.destroy');
+
+   
+
+
+
 
             });
 
