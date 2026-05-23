@@ -18,24 +18,28 @@ class ItemSeeder extends Seeder
                 'image' => public_path('seeder/images/sugar-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'منتج نهائي')->first()['id'],
+                'is_raw_material' => false,
             ],
             [
                 'name' => 'قصب السكر',
                 'image' => public_path('seeder/images/sugar-cane-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
+                'is_raw_material' => true,
             ],
             [
                 'name' => 'ماء',
                 'image' => public_path('seeder/images/water-tank-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'liter')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
+                'is_raw_material' => true,
             ],
             [
                 'name' => 'مواد كيميائية',
                 'image' => public_path('seeder/images/test-tubes-chemical-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
+                'is_raw_material' => true,
             ],
         ];
 
@@ -44,7 +48,7 @@ class ItemSeeder extends Seeder
                 'name' => $data['name'],
                 'section_id' => $data['section_id'],
                 'unit_id' => $data['unit_id'],
-                'is_raw_material' => true,
+                'is_raw_material' => $data['is_raw_material'],
             ]);
 
             // إضافة صورة إذا موجودة

@@ -10,7 +10,7 @@ enum ProductionLogAction: string
     case STARTED = 'started';
     case PAUSED = 'paused';
     case RESUMED = 'resumed';
- case SENT_TO_PRODUCTION = 'sent_to_production';
+    case SENT_TO_PRODUCTION = 'sent_to_production';
     case MATERIALS_RESERVED = 'materials_reserved';
 
     case PRODUCTION_ADDED = 'production_added';

@@ -11,13 +11,16 @@ class ProductionOrder extends Model
         'quantity',
         'produced_quantity',
         'status',
-    
         'notes',
     ];
 
     protected $hidden = [
         'updated_at',
         'created_at',
+    ];
+
+    protected $casts = [
+        'quantity' => 'integer',
     ];
 
 

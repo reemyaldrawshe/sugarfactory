@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ShipmentStatus;
+use App\Http\Requests\Tester\Shipment\LabApproveRequest;
 use App\Models\Item;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
@@ -211,9 +212,9 @@ class ShipmentService
     /**
      * 7b. Lab approves shipment after testing
      */
-    public function labApprove(int $shipmentId, $testerUser): Shipment
+    public function labApprove(LabApproveRequest $request, int $shipmentId, $testerUser): Shipment
     {
-        return DB::transaction(function () use ($shipmentId, $testerUser) {
+        return DB::transaction(function () use ($shipmentId, $testerUser, $request) {
             $shipment = Shipment::findOrFail($shipmentId);
 
             if ($shipment->status !== ShipmentStatus::PENDING_LAB) {
@@ -225,6 +226,7 @@ class ShipmentService
                 'status' => ShipmentStatus::APPROVED_LAB,
                 'lab_approved_by' => $testerUser->id,
                 'lab_approved_at' => now(),
+                'expiry_date' => $request['expiry_date'] ?? $shipment['expiry_date'],
             ]);
 
             $shipment->recordStatusChange($oldStatus, $testerUser, 'Lab approved shipment');
@@ -325,7 +327,7 @@ class ShipmentService
                 ]);
                 break;
             case 'tester':
-                $query->where('status', ShipmentStatus::PENDING_LAB);
+                $query->whereIn('status', [ShipmentStatus::PENDING_LAB, ShipmentStatus::APPROVED_LAB, ShipmentStatus::REJECTED_LAB]);
                 break;
             case 'finance':
                 $query->where('status', ShipmentStatus::FINISHED);
@@ -346,6 +348,9 @@ class ShipmentService
             $query->whereDate('received_at', '<=', $filters['date_to']);
         }
 
+        if(auth()->user()->hasRole('tester')){
+            return $query->orderBy('created_at', 'desc')->paginate();
+        }
         return $query->orderBy('created_at', 'desc')->get();
     }
 }

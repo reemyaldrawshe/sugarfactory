@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\BOMController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Production\ProductionReportController;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
 use Illuminate\Support\Facades\Route;
@@ -17,8 +18,13 @@ use App\Http\Controllers\Warehouse\ShipmentController as WarehouseShipmentContro
 use App\Http\Controllers\Sales\ShipmentController as SalesShipmentController;
 use App\Http\Controllers\Tester\ShipmentController as TesterShipmentController;
 use App\Http\Controllers\Finance\ShipmentController as FinanceShipmentController;
-use App\Http\Controllers\Production\ProductionOrderController as ProductionController;
 use App\Http\Controllers\Production\AuthController as ProductionAuthController;
+use App\Http\Controllers\Production\ProductionOrderController;
+use App\Http\Controllers\Admin\ProductionController as AdminProductionController;
+use App\Http\Controllers\Warehouse\ProductionController as WarehouseProductionController;
+use App\Http\Controllers\Production\ProductionExecutionController;
+
+Route::post('/login', [ProductionAuthController::class, 'login']);
 
 Route::prefix('admin')
     ->controller(AdminAuthController::class)
@@ -26,7 +32,6 @@ Route::prefix('admin')
     ->group(function (){
         Route::post('login', 'login');
     });
-
 
 Route::prefix('warehouse')
     ->controller(WarehouseAuthController::class)
@@ -51,6 +56,13 @@ Route::prefix('finance')
 
 Route::prefix('tester')
     ->controller(TesterAuthController::class)
+    ->middleware(SetLocaleMiddleware::class)
+    ->group(function (){
+        Route::post('login', 'login');
+    });
+
+Route::prefix('production')
+    ->controller(ProductionAuthController::class)
     ->middleware(SetLocaleMiddleware::class)
     ->group(function (){
         Route::post('login', 'login');
@@ -94,7 +106,6 @@ Route::prefix('admin')
                     ->name('user.index')
                     ->middleware('can:user.index');
             });
-
 
         Route::controller(RolePermissionController::class)
             ->prefix('roles-permissions')
@@ -164,7 +175,6 @@ Route::prefix('admin')
                     ->middleware('can:section.index');
             });
 
-
         Route::controller(BOMController::class)
             ->prefix('boms')
             ->group(function () {
@@ -183,9 +193,49 @@ Route::prefix('admin')
         Route::controller(AdminShipmentController::class)
             ->prefix('shipments')
             ->group(function () {
-                Route::get('', [AdminShipmentController::class, 'index']);
-                Route::post('/{id}/approve', [AdminShipmentController::class, 'approve'])
+                Route::get('','index');
+                Route::post('/{id}/approve', 'approve')
                     ->middleware('can:shipment.admin.approve');
+            });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Production Manager
+        |--------------------------------------------------------------------------
+        */
+
+        Route::prefix('orders')
+            ->controller(AdminProductionController::class)
+            ->group(function () {
+
+                /*
+               |--------------------------------------------------------------------------
+               | Preview Materials
+               |--------------------------------------------------------------------------
+               */
+                Route::get('/', 'index')
+                    ->middleware('can:production.order.view');
+
+                Route::get('/{id}', 'show')
+                    ->middleware('can:production.order.view');
+
+                /*
+                |--------------------------------------------------------------------------
+                | Approve Order
+                |--------------------------------------------------------------------------
+                */
+
+                Route::post('/{id}/approve', 'approve')
+                    ->middleware('can:production.manager.approve');
+
+                /*
+                |--------------------------------------------------------------------------
+                | Reject Order
+                |--------------------------------------------------------------------------
+                */
+
+                Route::post('/{id}/reject', 'reject')
+                    ->middleware('can:production.manager.reject');
             });
     });
 
@@ -233,7 +283,7 @@ Route::prefix('warehouse')
                     ->name('item.destroy')
                     ->middleware('can:item.destroy');
 
-   
+
 
 
 
@@ -256,6 +306,57 @@ Route::prefix('warehouse')
                 Route::post('/{id}/final-confirm', [WarehouseShipmentController::class, 'finalConfirm'])
                     ->middleware('can:shipment.warehouse.confirm_final');
             });
+
+        /*
+      |--------------------------------------------------------------------------
+      | Warehouse
+      |--------------------------------------------------------------------------
+      */
+
+        Route::prefix('orders')
+            ->controller(WarehouseProductionController::class)
+            ->group(function () {
+
+                /*
+               |--------------------------------------------------------------------------
+               | Preview Materials
+               |--------------------------------------------------------------------------
+               */
+                Route::get('/', 'index')
+                    ->middleware('can:production.order.view');
+
+                Route::get('/{id}', 'show')
+                    ->middleware('can:production.order.view');
+
+                /*
+                /*
+                |--------------------------------------------------------------------------
+                | Reserve Materials
+                |--------------------------------------------------------------------------
+                */
+
+                Route::post('/{id}/reserve-materials', 'reserve')
+                    ->middleware('can:production.order.warehouse.reserve');
+
+                /*
+                |--------------------------------------------------------------------------
+                | Send To Production
+                |--------------------------------------------------------------------------
+                */
+
+                Route::post('/{id}/send-to-production', 'send')
+                    ->middleware('can:production.order.warehouse.send');
+
+                /*
+                |--------------------------------------------------------------------------
+                | Material Requests
+                |--------------------------------------------------------------------------
+                */
+
+                Route::get('/material-requests', 'materialRequests')
+                    ->middleware('can:production.material.requests.view');
+            });
+
     });
 
 Route::prefix('tester')
@@ -328,58 +429,127 @@ Route::prefix('sales')
 
 
 
-    Route::post('/login', [ProductionAuthController::class, 'login']);
-    
 Route::prefix('production')
-     ->middleware(['auth:sanctum', SetLocaleMiddleware::class])
+    ->middleware([
+        'auth:sanctum',
+        SetLocaleMiddleware::class
+    ])
     ->group(function () {
 
-         Route::post('/logout', [ProductionAuthController::class, 'logout'])
-            ->middleware('permission:production.logout');
+        /*
+        |--------------------------------------------------------------------------
+        | Authentication
+        |--------------------------------------------------------------------------
+        */
 
-            
-             Route::post('/orders/{id}/approve', [ProductionController::class, 'managerDecision'])
-            ->middleware('permission:production.manager.approve');
+        Route::controller(ProductionAuthController::class)
+            ->group(function () {
+
+                Route::post(
+                    'logout',
+                    'logout'
+                )
+                    ->name('production.logout')
+                    ->middleware('can:production.logout');
+            });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Production Orders
+        |--------------------------------------------------------------------------
+        */
+
+        Route::prefix('orders')
+            ->controller(ProductionOrderController::class)
+            ->group(function () {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Create Production Order
+                |--------------------------------------------------------------------------
+                */
+
+                Route::post('/', 'store')
+                    ->middleware('can:production.create');
+
+                /*
+                |--------------------------------------------------------------------------
+                | Preview Materials
+                |--------------------------------------------------------------------------
+                */
+
+                Route::get('/', 'index')
+                    ->middleware('can:production.order.view');
+
+                Route::get('/{id}', 'show')
+                    ->middleware('can:production.order.view');
+            });
 
 
-        Route::post('/orders', [ProductionController::class, 'store'])
-            ->middleware('permission:production.create');
+        /*
+        |--------------------------------------------------------------------------
+        | Production Execution
+        |--------------------------------------------------------------------------
+        */
 
-            Route::post('/orders/{id}/warehouse-approve', 
-    [ProductionController::class, 'warehouseApprove']
-)->middleware('permission:production.order.warehouse.approve');
+        Route::prefix('orders')
+            ->controller(ProductionExecutionController::class)
+            ->group(function () {
 
-Route::post('/orders/{id}/start', [ProductionController::class, 'start'])
-    ->middleware('permission:production.order.start');
+                /*
+                |--------------------------------------------------------------------------
+                | Start Production
+                |--------------------------------------------------------------------------
+                */
 
-    Route::post('/orders/{id}/pause', [ProductionController::class, 'pause'])
-    ->middleware('permission:production.order.pause');
+                Route::post('/{id}/start', 'start')
+                    ->middleware('can:production.order.start');
 
+                /*
+                |--------------------------------------------------------------------------
+                | Pause Production
+                |--------------------------------------------------------------------------
+                */
 
-    Route::get('/orders/{id}/preview', [ProductionController::class, 'preview'])
-    ->middleware('permission:production.order.view');
+                Route::post('/{id}/pause', 'pause')
+                    ->middleware('can:production.order.pause');
 
-Route::post('/orders/{id}/resume', [ProductionController::class, 'resume'])
-    ->middleware('permission:production.order.resume');
+                /*
+                |--------------------------------------------------------------------------
+                | Resume Production
+                |--------------------------------------------------------------------------
+                */
 
-Route::post('/orders/{id}/complete', [ProductionController::class, 'complete'])
-    ->middleware('permission:production.order.finish');
+                Route::post('/{id}/resume', 'resume')
+                    ->middleware('can:production.order.resume');
 
-   Route::get(
-    'production-orders/material-requests',
-    [ProductionController::class, 'materialRequests']
-)->middleware('permission:production.material.requests.view');
+                /*
+                |--------------------------------------------------------------------------
+                | Complete Production
+                |--------------------------------------------------------------------------
+                */
 
+                Route::post('/{id}/complete', 'complete')
+                    ->middleware('can:production.order.finish');
+            });
 
-Route::post(
-    'production-orders/{id}/send-to-production',
-    [ProductionController::class, 'sendToProduction']  
-)->middleware('permission:production.order.warehouse.approve');
+        /*
+        |--------------------------------------------------------------------------
+        | Reports
+        |--------------------------------------------------------------------------
+        */
 
-Route::get(
-    'production-orders',
-    [ProductionController::class,
-    'allProductionOrders']
-);
+        Route::prefix('reports')
+            ->controller(ProductionReportController::class)
+            ->group(function () {
 
+                /*
+                |--------------------------------------------------------------------------
+                | All Production Orders
+                |--------------------------------------------------------------------------
+                */
+
+                Route::get('/', 'allOrders')
+                    ->middleware('can:production.order.view');
+            });
     });

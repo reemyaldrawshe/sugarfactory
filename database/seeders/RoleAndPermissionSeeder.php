@@ -34,7 +34,6 @@ class RoleAndPermissionSeeder extends Seeder
             'tester.logout',
             'finance.logout',
             'production.logout',
-            'production.create',
             'sales.logout',
             'item.store', 'item.update','item.destroy','item.index','item.show',
             'role_permission.store', 'role_permission.update', 'role_permission.destroy', 'role_permission.show', 'role_permission.index',
@@ -53,12 +52,11 @@ class RoleAndPermissionSeeder extends Seeder
             // admin
             'shipment.admin.approve',
 
-            // warehouse
+            //warehouse
             'shipment.warehouse.create',
             'shipment.warehouse.confirm_receipt',
             'shipment.warehouse.send_to_lab',
             'shipment.warehouse.confirm_final',
-            'production.material.requests.view',
 
             // purchase
             'shipment.purchase.view',
@@ -75,16 +73,17 @@ class RoleAndPermissionSeeder extends Seeder
             'shipment.finance.view',
 
             // production
-
-        'production.order.store',
-        'production.order.view',
-        'production.manager.approve',
-        'production.order.warehouse.approve',
-        'production.order.start',
-        'production.order.pause',
-         'production.order.resume',
-         'production.order.finish',
-
+            'production.create',
+            'production.order.view',
+            'production.order.start',
+            'production.order.pause',
+            'production.order.resume',
+            'production.order.finish',
+            'production.order.warehouse.reserve',
+            'production.order.warehouse.send',
+            'production.material.requests.view',
+            'production.manager.approve',
+            'production.manager.reject',
         ];
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
@@ -113,10 +112,9 @@ class RoleAndPermissionSeeder extends Seeder
             'shipment.show',
             'shipment.admin.approve',
 
-            'production.manager.approve',
             'production.order.view',
-
-
+            'production.manager.approve',
+            'production.manager.reject',
         ]);
 
         $warehouseRole->syncPermissions([
@@ -128,13 +126,15 @@ class RoleAndPermissionSeeder extends Seeder
             'shipment.warehouse.confirm_receipt',
             'shipment.warehouse.send_to_lab',
             'shipment.warehouse.confirm_final',
+            'production.order.view',
+            'production.order.warehouse.reserve',
+            'production.order.warehouse.send',
+            'production.material.requests.view',
 
-            'production.order.warehouse.approve',
-             'production.order.view',
-             'production.material.requests.view'
         ]);
 
         $testerRole->syncPermissions([
+            'item.index', 'item.show',
             'tester.logout',
             'shipment.index',
             'shipment.show',
@@ -149,9 +149,11 @@ class RoleAndPermissionSeeder extends Seeder
             'shipment.index',
             'shipment.show',
             'shipment.finance.view',
+            'item.index', 'item.show',
         ]);
 
         $salesRole->syncPermissions([
+            'item.index', 'item.show',
             'sales.logout',
             'shipment.index',
             'shipment.show',
@@ -161,17 +163,15 @@ class RoleAndPermissionSeeder extends Seeder
 
         ]);
 
-
-     $productionRole->syncPermissions([
-    'production.order.store',
-      'production.create',
-    'production.logout',
-    'production.order.view',
-    'production.order.start',
-    'production.order.pause',
-    'production.order.resume',
-    'production.order.finish',
-]);
+        $productionRole->syncPermissions([
+            'item.index', 'item.show',
+            'production.create',
+            'production.order.view',
+            'production.order.start',
+            'production.order.pause',
+            'production.order.resume',
+            'production.order.finish',
+        ]);
         /********************************************************************************/
 
         // Create users and assign roles
@@ -294,36 +294,38 @@ class RoleAndPermissionSeeder extends Seeder
         $permissions = $salesRole->permissions()->pluck('name')->toArray();
         $salesUser->givePermissionTo($permissions);
 
-$productionUser = User::query()->create([
-    'name' => 'Production User',
-    'email' => 'production@sugarfactory.com',
-    'lang' => 'ar',
-    'gender' => 'male',
-    'password' => bcrypt('production'),
-]);
+        /********************************************************************************/
 
-try {
-    $media = $productionUser->addMedia(public_path('/seeder/default_'.$productionUser['gender'].'_profile.jpg'))
-        ->preservingOriginal()
-        ->toMediaCollection('user');
+        $productionUser = User::query()->create([
+            'name' => 'Production User',
+            'email' => 'production@sugarfactory.com',
+            'lang' => 'ar',
+            'gender' => 'male',
+            'password' => bcrypt('production'),
+        ]);
 
-    $productionUser['profile_photo'] = $media->getUrl();
-    $productionUser->save();
+        try {
+            $media = $productionUser->addMedia(public_path('/seeder/default_'.$productionUser['gender'].'_profile.jpg'))
+                ->preservingOriginal()
+                ->toMediaCollection('user');
 
-} catch (FileDoesNotExist $e) {
-    Log::warning($e->getMessage());
-} catch (FileIsTooBig $e) {
-    Log::warning($e->getMessage());
-}
+            $productionUser['profile_photo'] = $media->getUrl();
+            $productionUser->save();
 
-$productionUser->assignRole($productionRole);
+        } catch (FileDoesNotExist $e) {
+            Log::warning($e->getMessage());
+        } catch (FileIsTooBig $e) {
+            Log::warning($e->getMessage());
+        }
 
-$permissions = $productionRole->permissions()->pluck('name')->toArray();
-$productionUser->givePermissionTo($permissions);
+        $productionUser->assignRole($productionRole);
+
+        $permissions = $productionRole->permissions()->pluck('name')->toArray();
+        $productionUser->givePermissionTo($permissions);
 
 
     }
 
 
-    
+
 }
