@@ -4,6 +4,7 @@ namespace App\Services\Warehouse;
 
 use App\Models\ProductionOrder;
 use App\Models\BOM;
+use App\Services\ItemTrackingService;
 use App\Services\Production\Inventory\InventoryService;
 use App\Enums\ProductionStatusEnum;
 use App\Services\Production\ProductionLogService;
@@ -12,10 +13,18 @@ use Illuminate\Validation\ValidationException;
 
 class ProductionService
 {
+    protected $trackingService;
+
+// Update constructor
     public function __construct(
-        protected InventoryService $inventoryService,
-        protected ProductionLogService $logService
-    ) {}
+        InventoryService $inventoryService,
+        ProductionLogService $logService,
+        ItemTrackingService $trackingService
+    ) {
+        $this->inventoryService = $inventoryService;
+        $this->logService = $logService;
+        $this->trackingService = $trackingService;
+    }
 
     public function reserveMaterials($id)
     {
@@ -78,18 +87,25 @@ class ProductionService
             $order->status !==
             ProductionStatusEnum::MATERIALS_RESERVED->value
         ) {
-
             throw ValidationException::withMessages([
                 'status' => 'status should be materials_reserved'
             ]);
         }
 
         $order->update([
-            'status' =>
-                ProductionStatusEnum
-                ::SENT_TO_PRODUCTION
-                    ->value
+            'status' => ProductionStatusEnum::SENT_TO_PRODUCTION->value
         ]);
+
+        // Add tracking log for each reserved material
+        foreach ($order->reservedMaterials as $reserved) {
+            $this->trackingService->logProductionIssue(
+                $order,
+                $reserved->item,
+                $reserved->quantity,
+                auth()->user(),
+                "Materials issued for production order #{$order->id}"
+            );
+        }
 
         return $order;
     }

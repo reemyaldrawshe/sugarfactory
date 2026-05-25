@@ -14,6 +14,13 @@ use Illuminate\Support\Facades\Storage;
 
 class ShipmentService
 {
+    protected $trackingService;
+
+    public function __construct(ItemTrackingService $trackingService)
+    {
+        $this->trackingService = $trackingService;
+    }
+
     /**
      * 1. Warehouse creates purchase request
      */
@@ -226,8 +233,13 @@ class ShipmentService
                 'status' => ShipmentStatus::APPROVED_LAB,
                 'lab_approved_by' => $testerUser->id,
                 'lab_approved_at' => now(),
-                'expiry_date' => $request['expiry_date'] ?? $shipment['expiry_date'],
+
             ]);
+
+            foreach ($shipment->items as $item) {
+                $item['expiry_date'] = $request['expiry_date'] ?? $shipment['expiry_date'];
+                $item->save();
+            }
 
             $shipment->recordStatusChange($oldStatus, $testerUser, 'Lab approved shipment');
 
@@ -280,6 +292,19 @@ class ShipmentService
 
             $shipment->recordStatusChange($oldStatus, $warehouseUser, 'Final confirmation - quantities added to inventory');
 
+            // Add tracking logs for each item in shipment
+            foreach ($shipment->items as $shipmentItem) {
+                if ($shipmentItem->quantity_received > 0) {
+                    $this->trackingService->logShipmentReceipt(
+                        $shipmentItem,
+                        $shipment,
+                        $shipmentItem->item,
+                        $shipmentItem->quantity_received,
+                        $warehouseUser
+                    );
+                }
+            }
+
             return $shipment;
         });
     }
@@ -312,8 +337,8 @@ class ShipmentService
         switch ($role) {
             case 'admin':
 //                $query->whereIn('status', [
-//                   ShipmentStatus::PENDING_ADMIN,
-//                   ShipmentStatus::PENDING_PURCHASE,
+//                    ShipmentStatus::PENDING_ADMIN,
+//                    ShipmentStatus::PENDING_PURCHASE,
 //                ]);
                 break;
             case 'sales':

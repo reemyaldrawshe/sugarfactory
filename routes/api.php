@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Admin\BOMController;
+use App\Http\Controllers\Admin\ItemTrackingLogController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Production\ProductionReportController;
+use App\Http\Controllers\Warehouse\DemolishOrderController;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
 use Illuminate\Support\Facades\Route;
@@ -198,12 +200,6 @@ Route::prefix('admin')
                     ->middleware('can:shipment.admin.approve');
             });
 
-        /*
-        |--------------------------------------------------------------------------
-        | Production Manager
-        |--------------------------------------------------------------------------
-        */
-
         Route::prefix('orders')
             ->controller(AdminProductionController::class)
             ->group(function () {
@@ -236,6 +232,14 @@ Route::prefix('admin')
 
                 Route::post('/{id}/reject', 'reject')
                     ->middleware('can:production.manager.reject');
+            });
+
+            // Item Tracking Logs
+            Route::prefix('tracking-logs')
+                ->name('tracking-logs.')
+                ->controller(ItemTrackingLogController::class)
+                ->group(function () {
+                Route::get('/', 'index')->name('index');
             });
     });
 
@@ -307,11 +311,6 @@ Route::prefix('warehouse')
                     ->middleware('can:shipment.warehouse.confirm_final');
             });
 
-        /*
-      |--------------------------------------------------------------------------
-      | Warehouse
-      |--------------------------------------------------------------------------
-      */
 
         Route::prefix('orders')
             ->controller(WarehouseProductionController::class)
@@ -357,6 +356,17 @@ Route::prefix('warehouse')
                     ->middleware('can:production.material.requests.view');
             });
 
+        // Demolish Orders
+        Route::prefix('demolish-orders')->name('demolish-orders.')
+            ->controller(DemolishOrderController::class)
+            ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/statistics', 'getStatistics')->name('statistics');
+            Route::get('/{id}', 'show')->name('show');
+            Route::post('/{id}', 'update')->name('update');
+            Route::delete('/{id}', 'destroy')->name('destroy');
+        });
     });
 
 Route::prefix('tester')

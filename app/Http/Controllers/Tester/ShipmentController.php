@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tester;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tester\Shipment\LabApproveRequest;
 use App\Http\Requests\Tester\Shipment\LabResultRequest;
 use App\Http\Requests\Tester\Shipment\LabRejectRequest;
 use App\Http\Responses\Response;
@@ -30,12 +31,13 @@ class ShipmentController extends Controller
     /**
      * 7b. Lab approve shipment
      */
-    public function approve(int $id): JsonResponse
+    public function approve(LabApproveRequest $request, int $id): JsonResponse
     {
         try {
-            $shipment = $this->service->labApprove($id, auth()->user());
+            $shipment = $this->service->labApprove($request, $id, auth()->user());
             return Response::Success($shipment, __('shipment.lab_approved'));
         } catch (Throwable $th) {
+            activity('Error: Tester approve')->log($th);
             return Response::Error([], $th->getMessage());
         }
     }
