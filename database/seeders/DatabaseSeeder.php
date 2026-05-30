@@ -23,7 +23,8 @@ class DatabaseSeeder extends Seeder
              ShipmentSeeder::class,
              BOMSeeder::class,
              ProductionOrderSeeder::class,
-            
+                        ERPDataSeeder::class
+
         ]);
     }
 }

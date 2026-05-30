@@ -15,6 +15,9 @@ class ItemService
     public function index(array $filters = []): Collection
     {
         return Item::query()
+        // هنا نقوم بجلب العلاقات: القسم، الوحدة، والدفعات
+        ->with(['section', 'unit', 'shipmentItems']) 
+        
             ->when(isset($filters['section_id']), function ($q) use ($filters) {
                 $q->where('section_id', $filters['section_id']);
             })
