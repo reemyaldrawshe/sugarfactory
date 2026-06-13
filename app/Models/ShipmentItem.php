@@ -13,12 +13,37 @@ class ShipmentItem extends Model implements HasMedia
     use HasFactory, InteractsWithMedia;
 
     protected $guarded = [];
-
+// 1. أضفنا الحقل الوهمي ليتم تضمينه تلقائياً في الـ JSON المعاد للتطبيق
+    protected $appends = [
+        'expiry_status',
+    ];
     protected $casts = [
         'price_history' => 'array',
         'quantity_history' => 'array',
         'expiry_date' => 'date',
     ];
+    // 2. دالة الـ Accessor لحساب حالة الصلاحية ديناميكياً
+    public function getExpiryStatusAttribute(): string
+    {
+        if (!$this->expiry_date) {
+            return 'no_expiry';
+        }
+
+        // بما أن الحقل مضاف للـ casts كـ date، فهو كائن Carbon جاهز
+        $expiry = $this->expiry_date;
+        $now = now()->startOfDay();
+        $oneMonthFromNow = now()->addMonth()->endOfDay();
+
+        if ($expiry->isPast()) {
+            return 'expired'; // منتهية الصلاحية
+        }
+
+        if ($expiry->lessThanOrEqualTo($oneMonthFromNow)) {
+            return 'expiring_soon'; // ستنتهي خلال شهر أو أقل
+        }
+
+        return 'good'; // صالحة وممتازة
+    }
 
     public function shipment()
 {

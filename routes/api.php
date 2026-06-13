@@ -10,6 +10,7 @@ use App\Http\Controllers\Warehouse\DemolishOrderController;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Warehouse\AuthController as WarehouseAuthController;
 use App\Http\Controllers\Sales\AuthController as SalesAuthController;
@@ -73,6 +74,34 @@ Route::prefix('production')
 Route::prefix('admin')
     ->middleware(['auth:sanctum', SetLocaleMiddleware::class])
     ->group(function () {
+        Route::controller(UnitController::class)
+            ->prefix('units')
+            ->group(function () {
+                // Store unit (Create)
+                Route::post('/', 'store')
+                    ->name('unit.store')
+                    ->middleware('can:unit.store');
+
+                // Update unit details
+                Route::post('/{unit}', 'update')
+                    ->name('unit.update')
+                    ->middleware('can:unit.update');
+
+                // Delete a unit
+                Route::delete('/{unit}', 'destroy')
+                    ->name('unit.destroy')
+                    ->middleware('can:unit.destroy');
+
+                // Show a unit's details
+                Route::get('/{unit}', 'show')
+                    ->name('unit.show')
+                    ->middleware('can:unit.show');
+
+                // List all units
+                Route::get('/', 'index')
+                    ->name('unit.index')
+                    ->middleware('can:unit.index');
+            });
         Route::controller(AdminAuthController::class)
             ->group(function () {
                 Route::post('logout', 'logout')
@@ -149,35 +178,37 @@ Route::prefix('admin')
             });
 
         Route::controller(SectionController::class)
+
             ->prefix('sections')
             ->group(function () {
                 // Store section (Create)
                 Route::post('/', 'store')
-                    ->name('section.store')
-                    ->middleware('can:section.store');
+                    ->name('section.store');
+                   // ->middleware('can:section.store');
 
                 // Update section details
                 Route::post('/{section}', 'update')
-                    ->name('section.update')
-                    ->middleware('can:section.update');
+                    ->name('section.update');
+                    //->middleware('can:section.update');
 
                 // Delete a section
                 Route::delete('/{section}', 'destroy')
-                    ->name('section.destroy')
-                    ->middleware('can:section.destroy');
+                    ->name('section.destroy');
+                    //->middleware('can:section.destroy');
 
                 // Show a section's details
                 Route::get('/{section}', 'show')
-                    ->name('section.show')
-                    ->middleware('can:section.show');
+                    ->name('section.show');
+                   // ->middleware('can:section.show');
 
                 // List all sections
                 Route::get('/', 'index')
-                    ->name('section.index')
-                    ->middleware('can:section.index');
+                    ->name('section.index');
+                 //   ->middleware('can:section.index');
             });
 
-        Route::controller(BOMController::class)
+       
+            Route::controller(BOMController::class)
             ->prefix('boms')
             ->group(function () {
                 // Store or update bom

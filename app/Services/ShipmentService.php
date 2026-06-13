@@ -336,6 +336,7 @@ class ShipmentService
 
         switch ($role) {
             case 'admin':
+            case 'warehouse':
 //                $query->whereIn('status', [
 //                    ShipmentStatus::PENDING_ADMIN,
 //                    ShipmentStatus::PENDING_PURCHASE,
@@ -344,13 +345,13 @@ class ShipmentService
             case 'sales':
                 $query->where('status', ShipmentStatus::PENDING_PURCHASE);
                 break;
-            case 'warehouse':
-                $query->whereIn('status', [
-                    ShipmentStatus::READY_AT_WAREHOUSE,
-                    ShipmentStatus::PENDING_LAB,
-                    ShipmentStatus::APPROVED_LAB,
-                ]);
-                break;
+            // case 'warehouse':
+            //     $query->whereIn('status', [
+            //         ShipmentStatus::READY_AT_WAREHOUSE,
+            //         ShipmentStatus::PENDING_LAB,
+            //         ShipmentStatus::APPROVED_LAB,
+            //     ]);
+            //     break;
             case 'tester':
                 $query->whereIn('status', [ShipmentStatus::PENDING_LAB, ShipmentStatus::APPROVED_LAB, ShipmentStatus::REJECTED_LAB]);
                 break;
