@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ItemTrackingLogController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Production\InventoryController;
 use App\Http\Controllers\Production\ProductionReportController;
 use App\Http\Controllers\Warehouse\DemolishOrderController;
 use App\Http\Middleware\SetLocaleMiddleware;
@@ -79,6 +80,14 @@ Route::prefix('admin')
             ->prefix('dashboard')
             ->group(function () {
                 Route::get('','stats');
+            });
+
+        Route::controller(InventoryController::class)
+            ->prefix('inventory')
+            ->group(function () {
+                Route::get('','index');
+                Route::post('','store');
+                Route::post('/{id}','update');
             });
 
         Route::controller(UnitController::class)
@@ -472,8 +481,6 @@ Route::prefix('sales')
                     ->middleware('can:shipment.sales.update');
             });
     });
-
-
 
 Route::prefix('production')
     ->middleware([

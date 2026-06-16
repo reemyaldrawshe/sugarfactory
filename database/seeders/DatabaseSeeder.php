@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             ERPDataSeeder::class,
             DemolishOrderSeeder::class,
             DemolishTrackingSeeder::class,
+            InventorySeeder::class,
         ]);
     }
 }
