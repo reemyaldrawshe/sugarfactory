@@ -69,6 +69,7 @@ class ProductionService
             }
 
             $order->update([
+                'warehouse_id' => auth()->id(),
                 'status' =>
                     ProductionStatusEnum
                     ::MATERIALS_RESERVED

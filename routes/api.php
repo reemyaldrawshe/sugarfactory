@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BOMController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ItemTrackingLogController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\SectionController;
@@ -74,6 +75,12 @@ Route::prefix('production')
 Route::prefix('admin')
     ->middleware(['auth:sanctum', SetLocaleMiddleware::class])
     ->group(function () {
+        Route::controller(DashboardController::class)
+            ->prefix('dashboard')
+            ->group(function () {
+                Route::get('','stats');
+            });
+
         Route::controller(UnitController::class)
             ->prefix('units')
             ->group(function () {
@@ -102,6 +109,7 @@ Route::prefix('admin')
                     ->name('unit.index')
                     ->middleware('can:unit.index');
             });
+
         Route::controller(AdminAuthController::class)
             ->group(function () {
                 Route::post('logout', 'logout')
@@ -178,7 +186,6 @@ Route::prefix('admin')
             });
 
         Route::controller(SectionController::class)
-
             ->prefix('sections')
             ->group(function () {
                 // Store section (Create)
@@ -207,8 +214,7 @@ Route::prefix('admin')
                  //   ->middleware('can:section.index');
             });
 
-       
-            Route::controller(BOMController::class)
+        Route::controller(BOMController::class)
             ->prefix('boms')
             ->group(function () {
                 // Store or update bom
@@ -265,13 +271,12 @@ Route::prefix('admin')
                     ->middleware('can:production.manager.reject');
             });
 
-            // Item Tracking Logs
-            Route::prefix('tracking-logs')
-                ->name('tracking-logs.')
-                ->controller(ItemTrackingLogController::class)
-                ->group(function () {
-                Route::get('/', 'index')->name('index');
-            });
+        Route::prefix('tracking-logs')
+            ->name('tracking-logs.')
+            ->controller(ItemTrackingLogController::class)
+            ->group(function () {
+            Route::get('/', 'index')->name('index');
+        });
     });
 
 Route::prefix('warehouse')

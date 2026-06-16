@@ -41,6 +41,7 @@ class ProductionOrderService
         }
 
         $order = ProductionOrder::create([
+            'production_id' => auth()->id(),
             'item_id' => $item->id,
             'quantity' => $data['quantity'],
             'status' => ProductionStatusEnum::PENDING->value,

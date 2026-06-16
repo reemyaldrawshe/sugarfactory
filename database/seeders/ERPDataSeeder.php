@@ -27,7 +27,7 @@ class ERPDataSeeder extends Seeder
     {
         // استخدام Transaction لضمان سرعة الإدخال وسلامة البيانات
         DB::transaction(function () {
-            
+
             $faker = Faker::create('ar_SA');
 
             // // 1. المستخدمون
@@ -47,19 +47,6 @@ class ERPDataSeeder extends Seeder
             // 2. المواد
             $units = Unit::all()->pluck('id');
             $sections = Section::all();
-            $rawSection = $sections->where('ar_name', 'مواد خام')->first()->id;
-            $finishedSection = $sections->where('ar_name', 'منتج نهائي')->first()->id;
-
-            for ($i = 0; $i < 20; $i++) {
-                $isRaw = $i >= 5;
-                Item::create([
-                    'name' => ($isRaw ? 'مادة خام ' : 'منتج نهائي ') . $faker->unique()->word,
-                    'section_id' => $isRaw ? $rawSection : $finishedSection,
-                    'unit_id' => $units->random(),
-                    'is_raw_material' => $isRaw,
-                    'minimum_quantity' => rand(10, 100),
-                ]);
-            }
             $allItems = Item::all();
             $rawItems = $allItems->where('is_raw_material', true);
             $finishedItems = $allItems->where('is_raw_material', false);
@@ -142,7 +129,9 @@ class ERPDataSeeder extends Seeder
                     'quantity' => 100,
                     'produced_quantity' => 80,
                     'status' => 'completed',
-                    'notes' => 'إنتاج آلي من الـ Seeder'
+                    'notes' => 'إنتاج آلي من الـ Seeder',
+                    'warehouse_id' => 2,
+                    'production_id' => 6,
                 ]);
 
                 ProductionOrderLog::create([

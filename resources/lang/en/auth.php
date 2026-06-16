@@ -11,6 +11,7 @@ return [
     'no_token' => 'Invalid token',
     'not_allowed' => "You don't have permission to access this point.",
     'no_permission' => "You don't have permission to access this point.",
+    'dashboard_stats' => 'stats fetched successfully.',
 
     'name' => [
         'required' => 'Name is required.',

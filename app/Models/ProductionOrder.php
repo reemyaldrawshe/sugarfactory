@@ -6,13 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ProductionOrder extends Model
 {
-    protected $fillable = [
-        'item_id',
-        'quantity',
-        'produced_quantity',
-        'status',
-        'notes',
-    ];
+    protected $guarded = [];
 
     protected $hidden = [
         'updated_at',
@@ -28,6 +22,16 @@ class ProductionOrder extends Model
     public function item()
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(User::class, 'warehouse_id');
+    }
+
+    public function production()
+    {
+        return $this->belongsTo(User::class, 'production_id');
     }
 
     // 🔗 المواد

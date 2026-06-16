@@ -22,7 +22,10 @@ class ProductionController extends Controller
 
         try {
 
-            $data = ProductionOrder::query()->where('status', '=', ProductionStatusEnum::APPROVED_BY_MANAGER->value)->get();
+            $data = ProductionOrder::query()
+                ->with(['item', 'warehouse', 'production'])
+//                ->where('status', '=', ProductionStatusEnum::APPROVED_BY_MANAGER->value)
+                ->get();
 
             return Response::Success(
                 $data,

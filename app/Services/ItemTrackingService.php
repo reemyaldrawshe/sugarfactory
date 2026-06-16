@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Auth;
 
 class ItemTrackingService
 {
+    public function getTrackingLogs()
+    {
+        return ItemTrackingLog::all();
+    }
     /**
      * Create tracking log for صرف (production)
      */

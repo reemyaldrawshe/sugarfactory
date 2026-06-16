@@ -13,30 +13,24 @@ return new class extends Migration
     {
         Schema::create('production_orders', function (Blueprint $table) {
             $table->id();
-             $table->foreignId('item_id') 
-        ->constrained('items')
-        ->cascadeOnDelete();
+            $table->foreignId('item_id')
+                ->constrained('items')
+                ->cascadeOnDelete();
+            $table->foreignId('warehouse_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->foreignId('production_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->integer('quantity'); // المطلوب إنتاجه
+            $table->integer('produced_quantity')->default(0); // المنتج فعلياً
 
-    
-        $table->integer('quantity'); // المطلوب إنتاجه
-$table->integer('produced_quantity')->default(0); // المنتج فعلياً
+            $table->string('status')->default('pending');
 
-    $table->string('status')->default('pending');
-    /*
-    pending                // تم إنشاء الطلب
-    manager_approved       // وافق المدير
-    materials_reserved     // المستودع حجز المواد (مواد مستلمة)
-    ready_to_start         // جاهز للبدء
-    in_production          // جاري الإنتاج
-    paused                 // متوقف
-    completed              // منتهي
-    rejected               // مرفوض
-*/
-
-  $table->text('notes')->nullable();
-
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
+
     }
 
     /**

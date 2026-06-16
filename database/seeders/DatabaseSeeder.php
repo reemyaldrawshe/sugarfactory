@@ -20,11 +20,12 @@ class DatabaseSeeder extends Seeder
             SectionSeeder::class,
             UnitSeeder::class,
             ItemSeeder::class,
-             ShipmentSeeder::class,
-             BOMSeeder::class,
-             ProductionOrderSeeder::class,
-            ERPDataSeeder::class
-
+            ShipmentSeeder::class,
+            BOMSeeder::class,
+            ProductionOrderSeeder::class,
+            ERPDataSeeder::class,
+            DemolishOrderSeeder::class,
+            DemolishTrackingSeeder::class,
         ]);
     }
 }
