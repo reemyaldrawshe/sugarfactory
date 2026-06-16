@@ -17,6 +17,7 @@ class ShipmentItem extends Model implements HasMedia
     protected $appends = [
         'expiry_status',
     ];
+    protected $with=['shipment'];
     protected $casts = [
         'price_history' => 'array',
         'quantity_history' => 'array',

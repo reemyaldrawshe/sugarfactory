@@ -23,7 +23,7 @@ class ProductionController extends Controller
         try {
 
             $data = ProductionOrder::query()
-                ->with(['item', 'warehouse', 'production'])
+                ->with(['item', 'warehouse', 'production', 'materials'])
 //                ->where('status', '=', ProductionStatusEnum::APPROVED_BY_MANAGER->value)
                 ->get();
 
