@@ -22,6 +22,10 @@ class Shipment extends Model
         'final_confirmed_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'total_price',
+    ];
+
     // Relationships
     public function items(): HasMany
     {
@@ -100,5 +104,12 @@ class Shipment extends Model
             'reason' => $reason,
             'metadata' => $metadata,
         ]);
+    }
+
+    public function getTotalPriceAttribute(): float
+    {
+        return (float) $this->items()
+            ->selectRaw('SUM(quantity_received * price) as total')
+            ->value('total');
     }
 }

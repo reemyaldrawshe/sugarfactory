@@ -11,6 +11,7 @@ class InventorySeeder extends Seeder
     public function run(): void
     {
         $inventory = Inventory::create([
+            'name' => 'test',
             'date' => now(),
             'status' => 'pending',
             'overall_compatibility' => 0,

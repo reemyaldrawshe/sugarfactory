@@ -16,6 +16,8 @@ class ShipmentItem extends Model implements HasMedia
 // 1. أضفنا الحقل الوهمي ليتم تضمينه تلقائياً في الـ JSON المعاد للتطبيق
     protected $appends = [
         'expiry_status',
+        'total_price',
+
     ];
     protected $with=['shipment'];
     protected $casts = [
@@ -89,5 +91,10 @@ class ShipmentItem extends Model implements HasMedia
             'quantity_received' => $newQuantity,
             'quantity_history' => $history,
         ]);
+    }
+
+    public function getTotalPriceAttribute(): float
+    {
+        return (float) ($this->quantity_received * $this->price);
     }
 }
