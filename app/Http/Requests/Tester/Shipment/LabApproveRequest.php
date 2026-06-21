@@ -14,7 +14,17 @@ class LabApproveRequest  extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'expiry_date' => ['date', 'after:today'],
+            // يجب إرسال مصفوفة من العناصر
+            'items' => ['required', 'array', 'min:1'],
+            
+            // تحقق من أن كل عنصر يحتوي على معرف العنصر وهو موجود في الداتا بيز
+            'items.*.shipment_item_id' => ['required', 'integer', 'exists:shipment_items,id'],
+            
+            // تحقق من أن كل عنصر يحتوي على تاريخ انتهاء صالح
+            'items.*.expiry_date' => ['required', 'date', 'after:today'],
         ];
+        // return [
+        //     'expiry_date' => ['date', 'after:today'],
+        // ];
     }
 }

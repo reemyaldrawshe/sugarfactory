@@ -236,10 +236,25 @@ class ShipmentService
 
             ]);
 
-            foreach ($shipment->items as $item) {
-                $item['expiry_date'] = $request['expiry_date'] ?? $shipment['expiry_date'];
-                $item->save();
+            // جلب مصفوفة العناصر المرسلة من الواجهة
+            $requestItems = $request->input('items');
+
+            // تحديث تاريخ الانتهاء لكل عنصر بشكل منفصل
+            foreach ($requestItems as $requestItem) {
+                // التأكد من أن هذا العنصر يتبع فعلاً لهذه الشحنة (حماية)
+                $shipmentItem = $shipment->items->where('id', $requestItem['shipment_item_id'])->first();
+                
+                if ($shipmentItem) {
+                    $shipmentItem->update([
+                        'expiry_date' => $requestItem['expiry_date']
+                    ]);
+                }
             }
+
+            // foreach ($shipment->items as $item) {
+            //     $item['expiry_date'] = $request['expiry_date'] ?? $shipment['expiry_date'];
+            //     $item->save();
+            // }
 
             $shipment->recordStatusChange($oldStatus, $testerUser, 'Lab approved shipment');
 
@@ -374,9 +389,9 @@ class ShipmentService
             $query->whereDate('received_at', '<=', $filters['date_to']);
         }
 
-        if(auth()->user()->hasRole('tester')){
-            return $query->orderBy('created_at', 'desc')->paginate();
-        }
+        // if(auth()->user()->hasRole('tester')){
+        //     return $query->orderBy('created_at', 'desc')->paginate();
+        // }
         return $query->orderBy('created_at', 'desc')->get();
     }
 }
