@@ -14,32 +14,50 @@ class ProductionExecutionService
         protected ProductionLogService $logService
     ) {}
 
-    public function start($id)
+    // public function start($id)
+    // {
+    //     $order = ProductionOrder::findOrFail($id);
+
+    //     if (
+    //         $order->status !==
+    //         ProductionStatusEnum::SENT_TO_PRODUCTION->value
+    //     ) {
+
+    //         throw ValidationException::withMessages([
+    //             'status' => 'Invalid status'
+    //         ]);
+    //     }
+
+    //     $order->update([
+    //         'status' =>
+    //             ProductionStatusEnum
+    //             ::IN_PRODUCTION
+    //                 ->value,
+
+    //         'started_at' => now(),
+    //     ]);
+
+    //     return $order;
+    // }
+public function start($id)
     {
         $order = ProductionOrder::findOrFail($id);
 
-        if (
-            $order->status !==
-            ProductionStatusEnum::SENT_TO_PRODUCTION->value
-        ) {
-
+        if ($order->status !== ProductionStatusEnum::SENT_TO_PRODUCTION->value) {
             throw ValidationException::withMessages([
-                'status' => 'Invalid status'
+                'status' => 'الطلب لم يتم صرفه من المستودع بعد أو أنه بحالة غير صالحة للبدء.'
             ]);
         }
 
         $order->update([
-            'status' =>
-                ProductionStatusEnum
-                ::IN_PRODUCTION
-                    ->value,
-
-            'started_at' => now(),
+            'status' => ProductionStatusEnum::IN_PRODUCTION->value,
+            'started_at' => now(), // إذا كان لديك هذا الحقل، أو تكتفي بالحالة واللوج
         ]);
+
+        $this->logService->log($order, 'started_production', 'أكد الإنتاج استلام المواد وبدأت عملية التصنيع الفعيلة.');
 
         return $order;
     }
-
     public function pause($id)
     {
         $order = ProductionOrder::findOrFail($id);
