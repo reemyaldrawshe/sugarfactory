@@ -79,6 +79,7 @@ class DemolishOrderService
             }
 
             $demolishOrder->update([
+                'status'=> $data['status'] ?? $demolishOrder->status,
                 'section_id' => $data['section_id'] ?? $demolishOrder->section_id,
                 'item_id' => $data['item_id'] ?? $demolishOrder->item_id,
                 'shipment_id' => $data['shipment_id'] ?? $demolishOrder->shipment_id,

@@ -14,6 +14,7 @@ class UpdateDemolishOrderRequest extends BaseFormRequest
     public function rules()
     {
         return [
+            'status'=>'sometimes|required|string',
             'section_id' => 'sometimes|required|exists:sections,id',
             'item_id' => 'sometimes|required|exists:items,id',
             'shipment_id' => 'nullable|exists:shipments,id',
