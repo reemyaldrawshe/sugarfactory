@@ -11,6 +11,8 @@ enum ShipmentStatus: string
     case APPROVED_LAB = 'approved_lab'; // تم قبولها من المخبر
     case REJECTED_LAB = 'rejected_lab'; // تم رفضها من المخبر
     case FINISHED = 'finished'; // منتهية
+    case PAID = 'paid'; // منتهية
+
 
     public function label(): string
     {
@@ -22,6 +24,8 @@ enum ShipmentStatus: string
             self::APPROVED_LAB => 'تم قبولها من المخبر',
             self::REJECTED_LAB => 'تم رفضها من المخبر',
             self::FINISHED => 'منتهية',
+            self::PAID => 'مدفوعة',
+
         };
     }
 
@@ -34,7 +38,9 @@ enum ShipmentStatus: string
             self::PENDING_LAB => [self::APPROVED_LAB, self::REJECTED_LAB],
             self::APPROVED_LAB => [self::FINISHED],
             self::REJECTED_LAB => [],
-            self::FINISHED => [],
+            self::FINISHED => [self::PAID],
+            self::PAID => [],
+
         };
     }
 
@@ -50,6 +56,7 @@ enum ShipmentStatus: string
             'sales' => ['update_prices' => self::READY_AT_WAREHOUSE],
             'warehouse' => ['confirm_receipt' => self::PENDING_LAB, 'final_confirm' => self::FINISHED],
             'tester' => ['approve' => self::APPROVED_LAB, 'reject' => self::REJECTED_LAB],
+            'finance'=>['pay' => self::PAID],
             default => [],
         };
     }

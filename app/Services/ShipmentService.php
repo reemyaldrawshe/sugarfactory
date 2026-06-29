@@ -28,7 +28,7 @@ class ShipmentService
     {
         return DB::transaction(function () use ($data, $warehouseUser) {
             $shipment = Shipment::create([
-                'supplier' => $data['supplier'],
+                // 'supplier' => $data['supplier'],
                 'received_at' => now(),
                 'status' => ShipmentStatus::PENDING_ADMIN,
                 'warehouse_id' => $warehouseUser->id,
@@ -78,7 +78,35 @@ class ShipmentService
             return $shipment;
         });
     }
+ public function payShipment(int $shipmentId, User $financeUser): Shipment
+{
+    return DB::transaction(function () use ($shipmentId, $financeUser) {
+        $shipment = Shipment::findOrFail($shipmentId);
 
+        // 1. التحقق من إمكانية الانتقال لحالة الدفع
+        if (!$shipment->canTransitionTo(ShipmentStatus::PAID)) {
+            throw new \Exception('لا يمكن دفع هذه الشحنة لأنها ليست منتهية (Finished).');
+        }
+
+        $oldStatus = $shipment->status;
+
+        // 2. تحديث الحقول التي قمت بإضافتها
+        $shipment->update([
+            'status'  => ShipmentStatus::PAID,
+            'paid_by' => $financeUser->id,
+            'paid_at' => now(),
+        ]);
+
+        // 3. تسجيل الحركة في السجل (History)
+        $shipment->recordStatusChange(
+            $oldStatus, 
+            $financeUser, 
+            'تم دفع قيمة الشحنة من قبل قسم المالية'
+        );
+
+        return $shipment;
+    });
+}
     /**
      * 3. Get pending purchase requests for sales/marketing
      */
@@ -93,7 +121,59 @@ class ShipmentService
             ->get();
     }
 
-    /**
+    // /**
+    //  * 4. Sales updates purchase request (prices, quantities, invoice)
+    //  */
+    // public function updatePurchaseRequest(array $data, $salesUser): Shipment
+    // {
+    //     return DB::transaction(function () use ($data, $salesUser) {
+    //         $shipment = Shipment::findOrFail($data['shipment_id']);
+
+    //         if ($shipment->status !== ShipmentStatus::PENDING_PURCHASE) {
+    //             throw new \Exception('Shipment must be in pending purchase status');
+    //         }
+
+    //         foreach ($data['items'] as $itemData) {
+    //             $shipmentItem = ShipmentItem::where('shipment_id', $shipment->id)
+    //                 ->where('item_id', $itemData['item_id'])
+    //                 ->firstOrFail();
+
+    //             // Track price changes
+    //             if (isset($itemData['price']) && $itemData['price'] != $shipmentItem->price) {
+    //                 $shipmentItem->updatePrice($itemData['price'], $salesUser);
+    //             }
+
+    //             // Track quantity changes
+    //             if (isset($itemData['quantity_received']) && $itemData['quantity_received'] != $shipmentItem->quantity_received) {
+    //                 $shipmentItem->updateQuantity($itemData['quantity_received'], $salesUser);
+    //             }
+    //             if(isset($data['invoice_image'])){
+    //                 $media = $shipmentItem->addMediaFromRequest('invoice_image')
+    //                     ->toMediaCollection('invoice_image');
+    //                 $shipmentItem['invoice_image'] = $media->getFullUrl();
+    //                 $shipmentItem->save();
+    //             }
+    //             // Update other fields
+    //             $shipmentItem->update([
+    //                 'expiry_date' => $itemData['expiry_date'] ?? $shipmentItem->expiry_date,
+    //                 'note' => $itemData['note'] ?? $shipmentItem->note,
+    //             ]);
+    //         }
+
+    //         // Update status to ready at warehouse
+    //         $oldStatus = $shipment->status;
+    //         $shipment->update([
+    //             'status' => ShipmentStatus::READY_AT_WAREHOUSE,
+    //             'purchase_updated_by' => $salesUser->id,
+    //             'purchase_updated_at' => now(),
+    //         ]);
+
+    //         $shipment->recordStatusChange($oldStatus, $salesUser, 'Purchase request updated with prices and quantities');
+
+    //         return $shipment->load('items.item');
+    //     });
+    // }
+/**
      * 4. Sales updates purchase request (prices, quantities, invoice)
      */
     public function updatePurchaseRequest(array $data, $salesUser): Shipment
@@ -105,11 +185,30 @@ class ShipmentService
                 throw new \Exception('Shipment must be in pending purchase status');
             }
 
-            foreach ($data['items'] as $itemData) {
-                $shipmentItem = ShipmentItem::where('shipment_id', $shipment->id)
-                    ->where('item_id', $itemData['item_id'])
-                    ->firstOrFail();
+            // 💡 التعديل الجديد: معالجة رفع صور الفواتير المتعددة للطلب ككل
+            if (isset($data['invoice_images']) && is_array($data['invoice_images'])) {
+                // جلب الصور القديمة في حال تم التعديل لاحقاً، أو إنشاء مصفوفة فارغة
+                $uploadedImages = $shipment->invoice_images ?? []; 
+                
+                foreach ($data['invoice_images'] as $image) {
+                    // حفظ الصورة في مجلد public/invoices
+                    $path = $image->store('invoices', 'public');
+                    $uploadedImages[] = $path;
+                }
+                
+                // حفظ المسارات في الشحنة
+                $shipment->invoice_images = $uploadedImages;
+                $shipment->save();
+            }
+            $totalPrice = 0;
 
+            foreach ($data['items'] as $itemData) {
+                // $shipmentItem = ShipmentItem::where('id', $shipment->id)
+                //     ->where('item_id', $itemData['item_id'])
+                //     ->firstOrFail();
+               $shipmentItem = ShipmentItem::where('shipment_id', $shipment->id)
+                 ->where('id', $itemData['item_id']) 
+                  ->firstOrFail();
                 // Track price changes
                 if (isset($itemData['price']) && $itemData['price'] != $shipmentItem->price) {
                     $shipmentItem->updatePrice($itemData['price'], $salesUser);
@@ -119,14 +218,18 @@ class ShipmentService
                 if (isset($itemData['quantity_received']) && $itemData['quantity_received'] != $shipmentItem->quantity_received) {
                     $shipmentItem->updateQuantity($itemData['quantity_received'], $salesUser);
                 }
-                if(isset($data['invoice_image'])){
-                    $media = $shipmentItem->addMediaFromRequest('invoice_image')
-                        ->toMediaCollection('invoice_image');
-                    $shipmentItem['invoice_image'] = $media->getFullUrl();
-                    $shipmentItem->save();
-                }
+                
+                // (تم إزالة كود Spatie Media Library الخاص بالصورة الفردية من هنا)
+// 💡 التعديل الجديد: حساب سعر الطن (أو الوحدة)
+    // نعتمد على القيم الجديدة إذا أُرسلت، وإلا نستخدم القيم الحالية في الموديل
+                        $currentPrice = $itemData['price'] ?? $shipmentItem->price;
+                      $currentQty = $itemData['quantity_received'] ?? $shipmentItem->quantity_received;
+                  $totalPrice += $currentPrice;
+    // تجنب القسمة على صفر
+                $unitPrice = ($currentQty > 0) ? ($currentPrice / $currentQty) : 0;
                 // Update other fields
                 $shipmentItem->update([
+                    'unit_price'  => $unitPrice?? $shipmentItem->unit_price, 
                     'expiry_date' => $itemData['expiry_date'] ?? $shipmentItem->expiry_date,
                     'note' => $itemData['note'] ?? $shipmentItem->note,
                 ]);
@@ -135,17 +238,19 @@ class ShipmentService
             // Update status to ready at warehouse
             $oldStatus = $shipment->status;
             $shipment->update([
-                'status' => ShipmentStatus::READY_AT_WAREHOUSE,
+                'supplier'            => $data['supplier'] ?? $shipment->supplier,        // حفظ اسم المورد
+                'supplier_number'     => $data['supplier_number'] ?? $shipment->supplier_number, // حفظ رقم المورد
+                'status'              => ShipmentStatus::READY_AT_WAREHOUSE,
+                'total_price'         => $totalPrice, // 💡 3. إضافة المجموع الكلي للحفظ في قاعدة البيانات
                 'purchase_updated_by' => $salesUser->id,
                 'purchase_updated_at' => now(),
             ]);
 
-            $shipment->recordStatusChange($oldStatus, $salesUser, 'Purchase request updated with prices and quantities');
+            $shipment->recordStatusChange($oldStatus, $salesUser, 'Purchase request updated with prices, quantities and invoices');
 
             return $shipment->load('items.item');
         });
     }
-
     /**
      * 5. Warehouse confirms receipt before lab testing
      */
@@ -338,6 +443,7 @@ class ShipmentService
             'sentToLabBy',
             'labApprovedBy',
             'finalConfirmedBy',
+            'paidBy', // ✅ أضف هذا السطر لجلب بيانات الموظف المالي
             'statusHistory.changedBy'
         ])->findOrFail($shipmentId);
     }
@@ -370,9 +476,9 @@ class ShipmentService
             case 'tester':
                 $query->whereIn('status', [ShipmentStatus::PENDING_LAB, ShipmentStatus::APPROVED_LAB, ShipmentStatus::REJECTED_LAB]);
                 break;
-            case 'finance':
-                $query->where('status', ShipmentStatus::FINISHED);
-                break;
+           case 'finance':
+    $query->whereIn('status', [ShipmentStatus::FINISHED, ShipmentStatus::PAID]);
+    break;
         }
 
         // Apply filters

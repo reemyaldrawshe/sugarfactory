@@ -15,6 +15,9 @@ class Shipment extends Model
         'received_at' => 'date',
         'status' => ShipmentStatus::class,
         'admin_approved_at' => 'datetime',
+        'paid_at' => 'datetime',
+
+        'invoice_images' => 'array', // 💡 التعديل الجديد هنا: لتحويل حقل الصور إلى مصفوفة تلقائياً
         'purchase_updated_at' => 'datetime',
         'warehouse_confirmed_at' => 'datetime',
         'sent_to_lab_at' => 'datetime',
@@ -22,9 +25,9 @@ class Shipment extends Model
         'final_confirmed_at' => 'datetime',
     ];
 
-    protected $appends = [
-        'total_price',
-    ];
+    // protected $appends = [
+    //     'total_price',
+    // ];
 
     // Relationships
     public function items(): HasMany
@@ -40,6 +43,10 @@ class Shipment extends Model
     public function adminApprovedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_approved_by');
+    }
+     public function paidBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paid_by');
     }
 
     public function purchaseUpdatedBy(): BelongsTo
@@ -87,7 +94,15 @@ class Shipment extends Model
     {
         return $query->where('status', ShipmentStatus::PENDING_LAB);
     }
+public function scopePendingPayment($query)
+{
+    return $query->where('status', ShipmentStatus::FINISHED);
+}
 
+public function scopePaid($query)
+{
+    return $query->where('status', ShipmentStatus::PAID);
+}
     // Helper Methods
     public function canTransitionTo(ShipmentStatus $newStatus): bool
     {
@@ -106,10 +121,10 @@ class Shipment extends Model
         ]);
     }
 
-    public function getTotalPriceAttribute(): float
-    {
-        return (float) $this->items()
-            ->selectRaw('SUM(quantity_received * price) as total')
-            ->value('total');
-    }
+    // public function getTotalPriceAttribute(): float
+    // {
+    //     return (float) $this->items()
+    //         ->selectRaw('SUM(quantity_received * price) as total')
+    //         ->value('total');
+    // }
 }

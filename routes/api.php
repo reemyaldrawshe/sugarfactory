@@ -57,6 +57,7 @@ Route::prefix('finance')
     ->middleware(SetLocaleMiddleware::class)
     ->group(function (){
         Route::post('login', 'login');
+        
     });
 
 Route::prefix('tester')
@@ -452,11 +453,24 @@ Route::prefix('finance')
                     ->middleware('can:finance.logout');
 
             });
+        // Route::controller(FinanceShipmentController::class)
+        //     ->prefix('shipments')
+        //     ->group(function () {
+        //         Route::get('shipments', [FinanceShipmentController::class, 'index'])
+        //             ->middleware('can:shipment.finance.view');
+        //     });
         Route::controller(FinanceShipmentController::class)
             ->prefix('shipments')
             ->group(function () {
-                Route::get('shipments', [FinanceShipmentController::class, 'index'])
+                
+                // 💡 ملاحظة: قمت بتعديل الرابط هنا من 'shipments' إلى '' 
+                // لكي لا يصبح الرابط مكرراً هكذا: /finance/shipments/shipments
+                Route::get('', [FinanceShipmentController::class, 'index'])
                     ->middleware('can:shipment.finance.view');
+
+                // ✅ المسار الجديد الخاص بعملية الدفع
+                Route::post('/{id}/pay', [FinanceShipmentController::class, 'pay']);
+                  //  ->middleware('can:shipment.finance.pay'); // تأكد من إضافة هذه الصلاحية في قاعدة البيانات (Seeder)
             });
     });
 

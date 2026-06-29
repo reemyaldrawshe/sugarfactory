@@ -13,12 +13,16 @@ return new class extends Migration
     {
         Schema::create('shipments', function (Blueprint $table) {
             $table->id();
-            $table->string('supplier');
+            $table->string('supplier')->nullable();
+            $table->string('supplier_number')->nullable();
             $table->date('received_at');
             $table->string('status');
+            $table->decimal('total_price', 15, 2)->default(0); // أضف هذا السطر
             $table->foreignId('warehouse_id')->constrained('users');
             $table->foreignId('admin_approved_by')->nullable()->constrained('users');
             $table->timestamp('admin_approved_at')->nullable();
+            $table->foreignId('paid_by')->nullable()->constrained('users');
+            $table->timestamp('paid_at')->nullable();
             $table->foreignId('purchase_updated_by')->nullable()->constrained('users');
             $table->timestamp('purchase_updated_at')->nullable();
             $table->foreignId('warehouse_confirmed_by')->nullable()->constrained('users');
@@ -30,6 +34,7 @@ return new class extends Migration
             $table->text('lab_rejection_reason')->nullable();
             $table->foreignId('final_confirmed_by')->nullable()->constrained('users');
             $table->timestamp('final_confirmed_at')->nullable();
+            $table->json('invoice_images')->nullable(); // هنا سيتم حفظ مصفوفة روابط الصور
             $table->text('notes')->nullable();
             $table->timestamps();
 

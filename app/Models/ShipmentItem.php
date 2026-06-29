@@ -17,6 +17,7 @@ class ShipmentItem extends Model implements HasMedia
     protected $appends = [
         'expiry_status',
         'total_price',
+        'unit_price',
 
     ];
     protected $with=['shipment'];
@@ -24,6 +25,7 @@ class ShipmentItem extends Model implements HasMedia
         'price_history' => 'array',
         'quantity_history' => 'array',
         'expiry_date' => 'date',
+
     ];
     // 2. دالة الـ Accessor لحساب حالة الصلاحية ديناميكياً
     public function getExpiryStatusAttribute(): string
@@ -60,7 +62,19 @@ class ShipmentItem extends Model implements HasMedia
     {
         return $this->belongsTo(Item::class);
     }
+// 💡 إضافة دالة الـ Accessor لحساب سعر الوحدة تلقائياً إذا لم يكن مخزناً
+public function getUnitPriceAttribute(): float
+{
+    // إذا كان الحقل موجوداً في قاعدة البيانات، أرجعه
+    if (isset($this->attributes['unit_price']) && $this->attributes['unit_price'] > 0) {
+        return (float) $this->attributes['unit_price'];
+    }
 
+    // إذا لم يكن موجوداً، احسبه بناءً على السعر الكلي والكمية
+    return ($this->quantity_received > 0) 
+        ? (float) ($this->price / $this->quantity_received) 
+        : 0;
+}
     public function updatePrice(float $newPrice, User $updatedBy): void
     {
         $history = $this->price_history ?? [];
