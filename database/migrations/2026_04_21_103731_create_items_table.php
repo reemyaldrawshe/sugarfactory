@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('unit_id')->constrained()->cascadeOnDelete();
             $table->boolean('is_raw_material')->default(false);
             $table->integer('minimum_quantity')->default(1);
+            $table->decimal('selling_price', 15, 2)->nullable()->default(0.00)->comment('سعر البيع الحالي للمنتج النهائي');
             $table->string('image')->nullable();
             $table->timestamps();
         });

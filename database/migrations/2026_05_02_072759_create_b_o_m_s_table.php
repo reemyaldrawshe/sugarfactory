@@ -23,6 +23,7 @@ return new class extends Migration
                 ->cascadeOnUpdate();
             $table->integer('basic_item_quantity')->default(0);
             $table->integer('final_item_quantity')->default(0);
+            $table->boolean('is_primary')->default(false);
             $table->timestamps();
         });
     }

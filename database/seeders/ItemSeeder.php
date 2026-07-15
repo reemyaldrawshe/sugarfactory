@@ -11,7 +11,6 @@ class ItemSeeder extends Seeder
 {
     public function run(): void
     {
-
         $items = [
             [
                 'name' => 'سكر أبيض',
@@ -19,6 +18,7 @@ class ItemSeeder extends Seeder
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'منتج نهائي')->first()['id'],
                 'is_raw_material' => false,
+                'selling_price' => 1200.00, // سعر بيع الطن للمنتج النهائي
             ],
             [
                 'name' => 'قصب السكر',
@@ -26,6 +26,7 @@ class ItemSeeder extends Seeder
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
                 'is_raw_material' => true,
+                'selling_price' => null, // مادة خام لا تباع
             ],
             [
                 'name' => 'ماء',
@@ -33,6 +34,7 @@ class ItemSeeder extends Seeder
                 'unit_id' => Unit::query()->where('name', '=', 'liter')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
                 'is_raw_material' => true,
+                'selling_price' => null, // مادة خام لا تباع
             ],
             [
                 'name' => 'مواد كيميائية',
@@ -40,6 +42,7 @@ class ItemSeeder extends Seeder
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
                 'is_raw_material' => true,
+                'selling_price' => null, // مادة خام لا تباع
             ],
         ];
 
@@ -49,15 +52,19 @@ class ItemSeeder extends Seeder
                 'section_id' => $data['section_id'],
                 'unit_id' => $data['unit_id'],
                 'is_raw_material' => $data['is_raw_material'],
+                'selling_price' => $data['selling_price'], // إدراج السعر هنا
             ]);
 
-            // إضافة صورة إذا موجودة
+            // إضافة صورة إذا كانت موجودة
             if (file_exists($data['image'])) {
                 $media = $item->addMedia($data['image'])
                     ->preservingOriginal()
                     ->toMediaCollection('item_image');
-                $item['image'] = $media->getFullUrl();
-                $item->save();
+                
+                // تحديث حقل الصورة بالرابط الكامل
+                $item->update([
+                    'image' => $media->getFullUrl()
+                ]);
             }
         }
     }

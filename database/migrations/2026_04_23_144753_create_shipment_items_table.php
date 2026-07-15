@@ -25,7 +25,7 @@ return new class extends Migration
             $table->integer('quantity_received')->default(0);
             $table->decimal('price', 10, 2)->nullable();
             $table->decimal('unit_price', 10, 2)->nullable();
-
+            $table->integer('quantity_reserved')->default(0);
             $table->date('expiry_date')->nullable();
             $table->string('invoice_image')->nullable();
             $table->string('lab_test_file')->nullable();

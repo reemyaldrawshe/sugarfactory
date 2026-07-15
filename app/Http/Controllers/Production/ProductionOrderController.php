@@ -52,8 +52,12 @@ class ProductionOrderController extends Controller
 
         try {
 
-            $query = ProductionOrder::query();
-            if(isset($request['status'])){
+           // $query = ProductionOrder::query();
+            $query = ProductionOrder::query()
+            ->with(['item', 'warehouse', 'production']) // منع الـ N+1 Query لعرض بيانات طلب المبيعات
+            ->latest();
+                            
+                if(isset($request['status'])){
                 $query->where('status', $request['status']);
             }
             $data = $query->get();

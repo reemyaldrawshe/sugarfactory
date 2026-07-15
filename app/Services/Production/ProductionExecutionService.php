@@ -39,10 +39,19 @@ class ProductionExecutionService
 
     //     return $order;
     // }
+
+    protected function ensureIsProductionOrder($order)
+    {
+        if ($order->type !== 'production') {
+            throw ValidationException::withMessages([
+                'type' => 'عذراً، هذا الطلب يخص المبيعات ولا يمكن معالجته في قسم الإنتاج.'
+            ]);
+        }
+    }
 public function start($id)
     {
         $order = ProductionOrder::findOrFail($id);
-
+         $this->ensureIsProductionOrder($order); // 👈 فحص النوع
         if ($order->status !== ProductionStatusEnum::SENT_TO_PRODUCTION->value) {
             throw ValidationException::withMessages([
                 'status' => 'الطلب لم يتم صرفه من المستودع بعد أو أنه بحالة غير صالحة للبدء.'
@@ -61,7 +70,7 @@ public function start($id)
     public function pause($id)
     {
         $order = ProductionOrder::findOrFail($id);
-
+$this->ensureIsProductionOrder($order); // 👈 فحص النوع
         $order->update([
             'status' =>
                 ProductionStatusEnum::PAUSED->value
@@ -73,7 +82,7 @@ public function start($id)
     public function resume($id)
     {
         $order = ProductionOrder::findOrFail($id);
-
+$this->ensureIsProductionOrder($order); // 👈 فحص النوع
         $order->update([
             'status' =>
                 ProductionStatusEnum
@@ -87,7 +96,7 @@ public function start($id)
     public function complete($id, $producedQty)
     {
         $order = ProductionOrder::findOrFail($id);
-
+$this->ensureIsProductionOrder($order); // 👈 فحص النوع
         $remaining =
             $order->quantity
             - $order->produced_quantity;

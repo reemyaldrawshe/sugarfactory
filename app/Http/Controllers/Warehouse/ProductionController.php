@@ -27,7 +27,8 @@ class ProductionController extends Controller
                     'item.bomAsFinal.basicItem', // تم التعديل هنا 
                     'warehouse', 
                     'production', 
-                    'materials.item',           
+                    'materials.item',       
+                        
                     'materials.shipmentItem'    
                 ])
                 ->latest()
@@ -37,11 +38,16 @@ class ProductionController extends Controller
             $data = $orders->map(function ($order) {
                 
                 $isPreparedOrBeyond = in_array($order->status, [
+                   ProductionStatusEnum::APPROVED_BY_MANAGER->value,
+
                     ProductionStatusEnum::MATERIALS_RESERVED->value,
                     ProductionStatusEnum::SENT_TO_PRODUCTION->value,
                     ProductionStatusEnum::IN_PRODUCTION->value,
                     ProductionStatusEnum::PAUSED->value,
                     ProductionStatusEnum::COMPLETED->value,
+                    ProductionStatusEnum::READY_FOR_SALE->value,
+                    ProductionStatusEnum::SOLD->value,
+
                 ]);
 
                 if ($isPreparedOrBeyond) {

@@ -13,7 +13,7 @@ use App\Models\Unit;
 use App\Models\Item;
 use App\Models\Shipment;
 use App\Models\ShipmentItem;
-use App\Models\BOM;
+ use App\Models\BOM;
 use App\Models\ProductionOrder;
 use App\Models\ProductionOrderMaterial;
 use App\Models\DemolishOrder;
@@ -111,16 +111,16 @@ class ERPDataSeeder extends Seeder
             }
 
             // 4. الـ BOM
-            foreach ($finishedItems as $fItem) {
-                foreach ($rawItems->random(3) as $rItem) {
-                    BOM::create([
-                        'final_item_id' => $fItem->id,
-                        'basic_item_id' => $rItem->id,
-                        'basic_item_quantity' => rand(1, 10),
-                        'final_item_quantity' => 1,
-                    ]);
-                }
-            }
+            // foreach ($finishedItems as $fItem) {
+            //     foreach ($rawItems->random(3) as $rItem) {
+            //         BOM::create([
+            //             'final_item_id' => $fItem->id,
+            //             'basic_item_id' => $rItem->id,
+            //             'basic_item_quantity' => rand(1, 10),
+            //             'final_item_quantity' => 1,
+            //         ]);
+            //     }
+            // }
 
             // 5. أوامر الإنتاج + Logs
             foreach ($finishedItems as $fItem) {

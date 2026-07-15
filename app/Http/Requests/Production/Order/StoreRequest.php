@@ -15,8 +15,6 @@ class StoreRequest extends FormRequest
     {
         return [
             'item_id' => 'required|exists:items,id',
-            'quantity' => 'required|integer|min:1',
-            'notes' => 'nullable|string',
         ];
     }
 }

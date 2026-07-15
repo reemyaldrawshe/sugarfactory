@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('item_tracking_logs', function (Blueprint $table) {
             $table->id();
-            $table->enum('type', ['صرف', 'توريد', 'اتلاف']); // صرف=production, توريد=shipment, اتلاف=demolish
+            $table->enum('type', ['صرف', 'توريد', 'اتلاف','بيع وتوزيع']); // صرف=production, توريد=shipment, اتلاف=demolish
 
             // Tracked record info
             $table->unsignedBigInteger('trackable_id');

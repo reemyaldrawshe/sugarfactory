@@ -6,6 +6,65 @@ use App\Models\ProductionOrder;
 
 class ProductionReportService
 {
+
+/**
+     * شاشة الإدارة العامة والمدير (يرى الإنتاج والمبيعات معاً) ✅
+     */
+    public function getAdminOrdersDashboard()
+    {
+        return ProductionOrder::with([
+            'item',                           
+            'materials.item',                 
+            'materials.shipmentItem',         
+            'logs.user'                       
+        ])
+        ->latest()
+        ->get(); 
+    }
+
+    /**
+     * شاشة أمين المستودع (يرى طلبات الإنتاج والمبيعات معاً لتحضيرها) ✅
+     */
+    public function getWarehouseTasks()
+    {
+        return [
+            'pending_preparation' => ProductionOrder::with(['item'])
+                ->where('status', ProductionStatusEnum::APPROVED_BY_MANAGER->value)
+                ->latest()
+                ->get(),
+
+            'ready_for_delivery' => ProductionOrder::with([
+                    'item',
+                    'materials.item',
+                    'materials.shipmentItem'
+                ])
+                ->where('status', ProductionStatusEnum::MATERIALS_RESERVED->value)
+                ->latest()
+                ->get(),
+        ];
+    }
+
+    /**
+     * شاشة إدارة خطوط الإنتاج (الطلبات الجاهزة للاستلام، والطلبات التي يتم تصنيعها حالياً)
+     * 💡 التعديل: جلب طلبات التصنيع (production) فقط وإخفاء المبيعات
+     */
+    public function getProductionTasks()
+    {
+        return [
+            'ready_to_receive' => ProductionOrder::production() // 👈 استخدام الـ Scope هنا
+                ->with(['item', 'materials.item'])
+                ->where('status', ProductionStatusEnum::SENT_TO_PRODUCTION->value)
+                ->latest()
+                ->get(),
+
+            'currently_in_production' => ProductionOrder::production() // 👈 استخدام الـ Scope هنا
+                ->with(['item'])
+                ->where('status', ProductionStatusEnum::IN_PRODUCTION->value)
+                ->latest()
+                ->get(),
+        ];
+    }
+
     /*
     |--------------------------------------------------------------------------
     | All Orders

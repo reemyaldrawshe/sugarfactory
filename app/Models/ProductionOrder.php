@@ -15,8 +15,29 @@ class ProductionOrder extends Model
 
     protected $casts = [
         'quantity' => 'integer',
+        //'status' => \App\Enums\ProductionStatusEnum::class, // من الأفضل ربط الـ Enum هنا
     ];
+// جلب طلبات الإنتاج فقط
+    public function scopeProduction($query)
+    {
+        return $query->where('type', 'production');
+    }
 
+    // جلب طلبات المبيعات فقط
+    public function scopeSales($query)
+    {
+        return $query->where('type', 'sales');
+    }
+
+    public function isSales(): bool
+    {
+        return $this->type === 'sales';
+    }
+
+    public function isProduction(): bool
+    {
+        return $this->type === 'production';
+    }
 
     // 🔗 المنتج النهائي
     public function item()
@@ -33,12 +54,18 @@ class ProductionOrder extends Model
     {
         return $this->belongsTo(User::class, 'production_id');
     }
+    // 💡 العلاقة الجديدة: مندوب المبيعات
+    public function salesUser()
+    {
+        return $this->belongsTo(User::class, 'sales_id');
+    }
 
     // 🔗 المواد
     public function materials()
     {
         return $this->hasMany(ProductionOrderMaterial::class);
     }
+    
 
    public function logs()
 {

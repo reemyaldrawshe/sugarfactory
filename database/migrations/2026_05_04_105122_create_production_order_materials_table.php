@@ -23,12 +23,15 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             $table->foreignId('shipment_item_id')
+            ->nullable()
               ->constrained('shipment_items')
-              ->cascadeOnDelete();
+              ->cascadeOnDelete()
+              ;
 
-            $table->integer('required_quantity');
-            $table->integer('consumed_quantity')->default(0);
-            $table->timestamps();
+               // 💡 التعديل الثاني: استخدام decimal للسماح بالكميات التي تحتوي على فواصل عشرية (مثال: 87.1)
+            $table->decimal('required_quantity', 10, 2); 
+            $table->decimal('consumed_quantity', 10, 2)->default(0);
+               $table->timestamps();
         });
     }
 

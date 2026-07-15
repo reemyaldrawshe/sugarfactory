@@ -13,6 +13,7 @@ use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Distribution\AuthController as DistributionAuthController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Warehouse\AuthController as WarehouseAuthController;
 use App\Http\Controllers\Sales\AuthController as SalesAuthController;
@@ -28,7 +29,7 @@ use App\Http\Controllers\Production\ProductionOrderController;
 use App\Http\Controllers\Admin\ProductionController as AdminProductionController;
 use App\Http\Controllers\Warehouse\ProductionController as WarehouseProductionController;
 use App\Http\Controllers\Production\ProductionExecutionController;
-
+use App\Http\Controllers\Distribution\DistributionOrderController;
 Route::post('/login', [ProductionAuthController::class, 'login']);
 
 Route::prefix('admin')
@@ -66,14 +67,43 @@ Route::prefix('tester')
     ->group(function (){
         Route::post('login', 'login');
     });
-
+Route::prefix('distribution')
+    ->controller(DistributionAuthController::class) // تأكد من إنشاء هذا الـ Controller
+    ->middleware(SetLocaleMiddleware::class)
+    ->group(function (){
+        Route::post('login', 'login');
+    });
 Route::prefix('production')
     ->controller(ProductionAuthController::class)
     ->middleware(SetLocaleMiddleware::class)
     ->group(function (){
         Route::post('login', 'login');
     });
+// 📊 دورة حياة طلبات التوزيع والمبيعات (Workflow الكامل)
+Route::prefix('distribution-orders')
+    ->controller(DistributionOrderController::class)
+        ->middleware(['auth:sanctum', SetLocaleMiddleware::class])
 
+    ->group(function () {
+        
+        // 1. جلب كافة الطلبات وتفاصيلها (متاح للجميع حسب الصلاحية)
+        Route::get('/', 'index');
+        
+        // 2. إنشاء طلب بيع جديد (قسم المبيعات)
+        Route::post('/', 'store');
+        
+        // 3. موافقة الإدارة على الطلب (الإدارة)
+        Route::post('/{id}/approve', 'approve');
+        
+        // 4. حجز المواد من المستودع حسب الأقدمية FEFO (أمين المستودع)
+        Route::post('/{id}/reserve-materials', 'reserve');
+        
+        // 5. شحن وإرسال الطلب للتوصيل Dispatch (أمين المستودع)
+        Route::post('/{id}/dispatch', 'dispatch');
+        
+        // 6. تأكيد البيع النهائي وقبض الفاتورة Complete (قسم المبيعات)
+        Route::post('/{id}/complete', 'complete');
+    });
 Route::prefix('admin')
     ->middleware(['auth:sanctum', SetLocaleMiddleware::class])
     ->group(function () {
@@ -123,8 +153,8 @@ Route::prefix('admin')
         Route::controller(AdminAuthController::class)
             ->group(function () {
                 Route::post('logout', 'logout')
-                    ->name('admin.logout')
-                    ->middleware('can:admin.logout');
+                    ->name('admin.logout');
+                   // ->middleware('can:admin.logout');
             });
 
         Route::controller(UserController::class)
@@ -296,8 +326,8 @@ Route::prefix('warehouse')
         Route::controller(AdminAuthController::class)
             ->group(function () {
                 Route::post('logout', 'logout')
-                    ->name('warehouse.logout')
-                    ->middleware('can:warehouse.logout');
+                    ->name('warehouse.logout');
+                    //->middleware('can:warehouse.logout');
 
             });
 
@@ -423,7 +453,7 @@ Route::prefix('tester')
             ->group(function () {
                 Route::post('logout', 'logout')
                     ->name('tester.logout')
-                    ->middleware('can:tester.logout');
+                   ;// ->middleware('can:tester.logout');
 
             });
 
@@ -450,7 +480,7 @@ Route::prefix('finance')
             ->group(function () {
                 Route::post('logout', 'logout')
                     ->name('finance.logout')
-                    ->middleware('can:finance.logout');
+                    ;//->middleware('can:finance.logout');
 
             });
         // Route::controller(FinanceShipmentController::class)
@@ -482,7 +512,7 @@ Route::prefix('sales')
             ->group(function () {
                 Route::post('logout', 'logout')
                     ->name('sales.logout')
-                    ->middleware('can:sales.logout');
+                  ;//  ->middleware('can:sales.logout');
 
             });
 
@@ -497,6 +527,7 @@ Route::prefix('sales')
     });
 
 Route::prefix('production')
+
     ->middleware([
         'auth:sanctum',
         SetLocaleMiddleware::class
@@ -517,7 +548,7 @@ Route::prefix('production')
                     'logout'
                 )
                     ->name('production.logout')
-                    ->middleware('can:production.logout');
+                    ;//->middleware('can:production.logout');
             });
 
         /*
@@ -619,4 +650,20 @@ Route::prefix('production')
                 Route::get('/', 'allOrders')
                     ->middleware('can:production.order.view');
             });
+    });
+
+
+
+
+    Route::prefix('distribution')
+    ->middleware(['auth:sanctum', SetLocaleMiddleware::class])
+    ->group(function () {
+
+        Route::controller(DistributionAuthController::class)
+            ->group(function () {
+                Route::post('logout', 'logout')
+                    ->name('distribution.logout')
+                    ->middleware('can:distribution.logout');
+            });
+            
     });
