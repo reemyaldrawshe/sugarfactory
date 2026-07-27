@@ -94,7 +94,8 @@ Route::prefix('distribution-orders')
         
         // 3. موافقة الإدارة على الطلب (الإدارة)
         Route::post('/{id}/approve', 'approve');
-        
+         Route::post('/{id}/reject', 'reject');
+
         // 4. حجز المواد من المستودع حسب الأقدمية FEFO (أمين المستودع)
         Route::post('/{id}/reserve-materials', 'reserve');
         

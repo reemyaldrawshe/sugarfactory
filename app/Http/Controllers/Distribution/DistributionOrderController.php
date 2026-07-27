@@ -165,6 +165,16 @@ class DistributionOrderController extends Controller
             return Response::Error([], $th->getMessage());
         }
     }
+    // إرسال للتوصيل (Dispatch)
+    public function reject($id): JsonResponse
+    {
+        try {
+            $order = $this->workflowService->rejectByManager($id);
+            return Response::Success($order, 'تم رفض الطلب');
+        } catch (Throwable $th) {
+            return Response::Error([], $th->getMessage());
+        }
+    }
 
     // تأكيد البيع النهائي (Sold)
     public function complete($id): JsonResponse

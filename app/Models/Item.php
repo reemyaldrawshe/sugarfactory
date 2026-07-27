@@ -76,8 +76,9 @@ public function getGoodCountAttribute() {
                 'id' => $bom->id,
 
                 'item_id' => $bom->basic_item_id,
-
+                 'final_item_quantity' => $bom->final_item_quantity,
                 'item_name' => $bom->basicItem->name ?? null,
+                'is_primary' => $bom->is_primary??null,
 
                 'unit' => $bom->basicItem->unit->name ?? null,
 
