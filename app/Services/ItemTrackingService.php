@@ -12,8 +12,37 @@ class ItemTrackingService
         return ItemTrackingLog::all();
     }
     /**
+ * إنشاء سجل تتبع لعملية توريد المواد المنتجة من خط الإنتاج إلى المستودع
+ */
+public function logProductionReceipt($shipmentItem, $productionOrder, $item, $quantity, $warehouseUser)
+{
+    return ItemTrackingLog::create([
+        'type' => 'توريد', // حركة دخول للمستودع
+        'trackable_id' => $shipmentItem->id, // الدفعة الجديدة التي تم إنشاؤها
+        'trackable_type' => get_class($shipmentItem),
+        'status' => $productionOrder->status, // الحالة (completed)
+        'item_id' => $item->id,
+        'item_name' => $item->name,
+        'quantity' => $quantity,
+        'shipment_id' => null, // لا يوجد شحنة استيراد لأنها تصنيع داخلي
+        
+        // الجهة المرسلة: قسم الإنتاج
+        'sent_from_role' => 'production',
+        'sent_from_user_name' => $productionOrder->productionKey->name ?? 'Production Department',
+        'sent_from_user_id' => $productionOrder->production_id ?? 0,
+        
+        // الجهة المستقبلة: أمين المستودع الذي أكد الاستلام والتعبئة
+        'sent_to_role' => $warehouseUser->roles->first()->name ?? 'warehouse',
+        'sent_to_user_name' => $warehouseUser->name,
+        'sent_to_user_id' => $warehouseUser->id,
+        
+        'notes' => "تم استلام الدفعة الجاهزة الناتجة عن أمر الإنتاج رقم #{$productionOrder->id}"
+    ]);
+}
+    /**
      * Create tracking log for صرف (production)
      */
+
     public function logProductionIssue($productionOrder, $item, $quantity, $user, $notes = null)
     {
         return ItemTrackingLog::create([

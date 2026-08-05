@@ -124,11 +124,12 @@ class ProductionExecutionController extends Controller
 
         try {
 
-            $data = $this->service->complete(
+$data = $this->service->complete(
                 $id,
-                $request->produced_quantity
+                $request->produced_quantity,
+                $request->expiry_date,
+                $request->user() 
             );
-
             return Response::Success(
                 $data,
                 'Production completed successfully'

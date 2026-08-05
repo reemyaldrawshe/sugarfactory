@@ -29,13 +29,14 @@ return new class extends Migration
                 // 💡 التعديل: إضافة موظف المبيعات (nullable لأنه قد يكون طلب إنتاج)
             $table->foreignId('sales_id')
                 ->nullable()
+
                 ->constrained('users')
                 ->cascadeOnDelete();
             $table->integer('quantity')->nullable(); // المطلوب إنتاجه
             $table->integer('produced_quantity')->default(0); // المنتج فعلياً
-
+            $table->integer('deviation')->default(0);
             $table->string('status')->default('pending');
-
+            $table->timestamp('started_at')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
         });

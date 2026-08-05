@@ -18,8 +18,10 @@ return new class extends Migration
             ->nullable()
             ->constrained()
             ->cascadeOnDelete();
-
-    
+        $table->foreignId('production_order_id')
+        ->nullable()
+        ->constrained('production_orders')
+        ->cascadeOnDelete();    
             $table->foreignId('item_id')->constrained()->cascadeOnDelete();
             $table->integer('quantity_required');
             $table->integer('quantity_received')->default(0);

@@ -13,6 +13,10 @@ use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UnitController;
+use App\Http\Controllers\Finance\FinancePricingController; 
+use App\Http\Controllers\Finance\FinancialReportController; 
+
+use App\Http\Controllers\Finance\FinanceProductionController;
 use App\Http\Controllers\Distribution\AuthController as DistributionAuthController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Warehouse\AuthController as WarehouseAuthController;
@@ -503,6 +507,28 @@ Route::prefix('finance')
                 Route::post('/{id}/pay', [FinanceShipmentController::class, 'pay']);
                   //  ->middleware('can:shipment.finance.pay'); // تأكد من إضافة هذه الصلاحية في قاعدة البيانات (Seeder)
             });
+
+        Route::controller(FinanceProductionController::class)
+            ->prefix('production-costs')
+            ->group(function () {
+                Route::get('/', 'getProductionCosts'); 
+                // ->middleware('can:finance.production.costs'); // يمكنك تفعيل الصلاحيات لاحقاً
+            });
+
+            Route::controller(FinancePricingController::class)
+            ->prefix('items')
+            ->group(function () {
+                // الرابط النهائي سيكون: GET /api/finance/items/{itemId}/pricing-analysis
+                Route::get('/{itemId}/pricing-analysis', 'getPricingAnalysis');
+                // ->middleware('can:finance.pricing.view'); // يمكنك تفعيل الصلاحيات لاحقاً
+                Route::post('/{itemId}/update-selling-price', 'updateSellingPrice');
+            });
+            Route::controller(FinancialReportController::class)
+    ->prefix('reports')
+    ->group(function () {
+        // GET /api/finance/reports/sales-profits?start_date=2023-09-01&end_date=2023-09-30
+        Route::get('/sales-profits', 'getSalesProfitsReport');
+    });
     });
 
 Route::prefix('sales')
@@ -668,3 +694,5 @@ Route::prefix('production')
             });
             
     });
+
+

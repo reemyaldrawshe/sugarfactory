@@ -6,12 +6,15 @@ use App\Models\ProductionOrder;
 use App\Services\Production\Inventory\InventoryService;
 use App\Enums\ProductionStatusEnum;
 use Illuminate\Validation\ValidationException;
-
+use App\Models\ShipmentItem;
+use App\Services\ItemTrackingService; // 👈 استدعاء خدمة التتبع
+use Illuminate\Support\Facades\DB;
 class ProductionExecutionService
 {
     public function __construct(
         protected InventoryService $inventoryService,
-        protected ProductionLogService $logService
+        protected ProductionLogService $logService,
+        protected ItemTrackingService $trackingService // 👈 حقن خدمة التتبع هنا
     ) {}
 
     // public function start($id)
@@ -92,44 +95,117 @@ $this->ensureIsProductionOrder($order); // 👈 فحص النوع
 
         return $order;
     }
-
-    public function complete($id, $producedQty)
+public function complete(int $id, $producedQty, $expiryDate, $warehouseUser): ProductionOrder
     {
-        $order = ProductionOrder::findOrFail($id);
-$this->ensureIsProductionOrder($order); // 👈 فحص النوع
-        $remaining =
-            $order->quantity
-            - $order->produced_quantity;
+        // تغليف العملية بالكامل داخل Transaction لضمان الأمان
+        return DB::transaction(function () use ($id, $producedQty, $expiryDate, $warehouseUser) {
+            
+           // $order = ProductionOrder::findOrFail($id);
+           $order = ProductionOrder::with('materials.shipmentItem')->findOrFail($id);
+            $this->ensureIsProductionOrder($order);
 
-        if ($producedQty > $remaining) {
+            // التحقق من حالة الطلب الحالية قبل الإغلاق
+            if ($order->status === ProductionStatusEnum::COMPLETED->value) {
+                throw new \Exception('هذا الأمر مكتمل ومغلق مسبقاً.');
+            }
 
-            throw ValidationException::withMessages([
-                'qty' => 'Exceeded remaining quantity'
+            // 1. حساب الانحراف (الكمية الفعلية المنتجة - الكمية المتوقعة المطلوبة)
+            $deviation = $producedQty - $order->quantity;
+
+            // 2. تحديث بيانات أمر الإنتاج الأساسية
+            $order->update([
+                'produced_quantity' => $producedQty,
+                'deviation'         => $deviation,
+                'status'            => ProductionStatusEnum::COMPLETED->value,
             ]);
+// 💡 التعديل الثاني: حساب إجمالي تكلفة المواد الخام المستهلكة في هذا الأمر
+        $totalMaterialsCost = 0;
+        foreach ($order->materials as $material) {
+            $rawMaterialUnitPrice = $material->shipmentItem ? $material->shipmentItem->unit_price : 0;
+            $totalMaterialsCost += ($material->consumed_quantity * $rawMaterialUnitPrice);
         }
 
-        $order->increment(
-            'produced_quantity',
-            $producedQty
-        );
+        // 💡 التعديل الثالث: حساب تكلفة الوحدة الواحدة من المنتج النهائي
+        // حماية الكود من خطأ Division by Zero في حال تم إدخال كمية منتجة = 0 بالخطأ
+        $finishedProductUnitPrice = $producedQty > 0 ? ($totalMaterialsCost / $producedQty) : 0;
+            // 3. توليد الدفعة الجديدة (Batch) في جدول الـ shipment_items
+            // تم ربطها بـ production_order_id لمعرفة مصدرها مستقبلاً
+            $batch = ShipmentItem::create([
+                'item_id'             => $order->item_id,
+                'shipment_id'         => null, // فارغ لأن المصدر إنتاج وليس شحنة خارجية
+                'production_order_id' => $order->id, // 👈 ربط الدفعة بأمر الإنتاج الحالي
+                'quantity_required'   => $order->quantity,
+                'quantity_received'   => $producedQty,
+                'quantity_reserved'   => 0,
+                'unit_price'          => $finishedProductUnitPrice,
+                'expiry_date'         => $expiryDate, // التاريخ المدخل من المستخدم عبر الواجهة
+                'note'                => "دفعة ناتجة عن إغلاق أمر الإنتاج رقم #{$order->id}",
+            ]);
 
-        $this->inventoryService
-            ->increaseFinishedStock(
+            // 4. تحديث الكميات في المستودع الفعلي
+            $this->inventoryService->increaseFinishedStock(
                 $order->item_id,
                 $producedQty
             );
 
-        $order->refresh();
+            // 5. تسجيل اللوج الخاص بحالات الإنتاج التقليدي
+            $this->logService->log(
+                $order, 
+                'completed_production', 
+                "أكد المسؤول استلام كمية {$producedQty} وإدخالها للمستودع كدفعة جديدة بنجاح."
+            );
 
+            // 6. الاحترافية والتتبع: إرسال حركة التوريد إلى سجل حركة المواد العام (ItemTrackingLogs)
+            if ($producedQty > 0) {
+                $this->trackingService->logProductionReceipt(
+                    $batch,            // موديل الدفعة المُنشأة
+                    $order,            // موديل أمر الإنتاج
+                    $order->item,      // المادة المنتجة
+                    $producedQty,      // الكمية المستلمة
+                    $warehouseUser     // المستخدم الحالي (أمين المستودع)
+                );
+            }
 
-        $order->update([
-            'status' =>
-                ProductionStatusEnum
-                ::COMPLETED
-                    ->value,
-
-        ]);
-
-        return $order;
+            return $order;
+        });
     }
+//     public function complete($id, $producedQty)
+//     {
+//         $order = ProductionOrder::findOrFail($id);
+// $this->ensureIsProductionOrder($order); // 👈 فحص النوع
+//         $remaining =
+//             $order->quantity
+//             - $order->produced_quantity;
+
+//         if ($producedQty > $remaining) {
+
+//             throw ValidationException::withMessages([
+//                 'qty' => 'Exceeded remaining quantity'
+//             ]);
+//         }
+
+//         $order->increment(
+//             'produced_quantity',
+//             $producedQty
+//         );
+
+//         $this->inventoryService
+//             ->increaseFinishedStock(
+//                 $order->item_id,
+//                 $producedQty
+//             );
+
+//         $order->refresh();
+
+
+//         $order->update([
+//             'status' =>
+//                 ProductionStatusEnum
+//                 ::COMPLETED
+//                     ->value,
+
+//         ]);
+
+//         return $order;
+//     }
 }
