@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Finance\FinancePricingController; 
 use App\Http\Controllers\Finance\FinancialReportController; 
-
+use App\Http\Controllers\Finance\ExecutiveReportController;
 use App\Http\Controllers\Finance\FinanceProductionController;
 use App\Http\Controllers\Distribution\AuthController as DistributionAuthController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
@@ -529,6 +529,13 @@ Route::prefix('finance')
         // GET /api/finance/reports/sales-profits?start_date=2023-09-01&end_date=2023-09-30
         Route::get('/sales-profits', 'getSalesProfitsReport');
     });
+    // ✅ إضافة التقرير المالي التنفيذي
+        Route::controller(ExecutiveReportController::class)
+            ->prefix('reports')
+            ->group(function () {
+                // GET /api/finance/reports/executive
+                Route::get('/executive', 'getExecutiveReport');
+            });
     });
 
 Route::prefix('sales')
