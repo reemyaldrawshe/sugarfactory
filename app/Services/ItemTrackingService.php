@@ -3,14 +3,49 @@
 namespace App\Services;
 
 use App\Models\ItemTrackingLog;
+use App\Models\InventoryAudit;
 use Illuminate\Support\Facades\Auth;
 
 class ItemTrackingService
 {
-    public function getTrackingLogs()
+    // public function getTrackingLogs()
+    // {
+    //     return ItemTrackingLog::all();
+    // }
+public function getTrackingLogs($filters = [], $perPage = 50)
     {
-        return ItemTrackingLog::all();
+        $query = ItemTrackingLog::query();
+
+        // 1. تحديد النطاق الزمني (من - إلى)
+        // إذا لم يتم تمرير تاريخ، نجلب بيانات آخر شهر افتراضياً
+        $dateFrom = isset($filters['date_from']) 
+                    ? \Carbon\Carbon::parse($filters['date_from'])->startOfDay() 
+                    : now()->subMonth()->startOfDay();
+
+        $dateTo = isset($filters['date_to']) 
+                  ? \Carbon\Carbon::parse($filters['date_to'])->endOfDay() 
+                  : now()->endOfDay();
+
+        $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+
+        // 2. الفلترة حسب المادة (إذا تم إرسالها)
+        if (!empty($filters['item_id'])) {
+            $query->where('item_id', $filters['item_id']);
+        }
+
+        // 3. الفلترة حسب نوع الحركة (إذا تم إرسالها)
+        if (!empty($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+
+        // ترتيب النتائج من الأحدث للأقدم
+        $query->orderBy('created_at', 'desc');
+
+        // ملاحظة: نستخدم get() لكي تتوافق مع طريقة قراءة البيانات الحالية في الفلاتر
+        // الأفضل مستقبلاً استخدام paginate($perPage) إذا كانت بيانات الشهر الواحد كبيرة جداً
+        return $query->get(); 
     }
+
     /**
  * إنشاء سجل تتبع لعملية توريد المواد المنتجة من خط الإنتاج إلى المستودع
  */
@@ -113,5 +148,31 @@ public function logProductionReceipt($shipmentItem, $productionOrder, $item, $qu
             'notes' => $notes ?? "Demolish order: {$demolishOrder->reason}"
         ]);
     }
+    /**
+ * تسجيل حركة تعديل مخزني ناتج عن عملية جرد
+ */
+public function logInventoryAudit($auditItem, $user, $notes = null)
+{
+    return ItemTrackingLog::create([
+        'type' => 'جرد',
+        'trackable_id' => $auditItem->inventory_audit_id,
+        'trackable_type' => InventoryAudit::class,
+        'status' => 'approved',
+        'item_id' => $auditItem->item_id,
+        'item_name' => $auditItem->item->name ?? 'غير معروف',
+        'quantity' => $auditItem->actual_quantity, // الكمية الجديدة اعتماداً
+        'shipment_id' => $auditItem->shipmentItem->shipment_id ?? null,
+        
+        'sent_from_role' => $user->roles->first()->name ?? 'admin',
+        'sent_from_user_name' => $user->name,
+        'sent_from_user_id' => $user->id,
+        
+        'sent_to_role' => 'warehouse',
+        'sent_to_user_name' => 'المستودع الرئيسي',
+        'sent_to_user_id' => 0,
+        
+        'notes' => $notes ?? "تعديل جرد: الكمية القديمة ({$auditItem->old_quantity}) -> الكمية الجديدة ({$auditItem->actual_quantity}) - الفرق: ({$auditItem->difference})"
+    ]);
+}
 
 }

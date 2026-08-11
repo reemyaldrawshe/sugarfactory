@@ -11,6 +11,8 @@ use App\Http\Controllers\Production\ProductionReportController;
 use App\Http\Controllers\Warehouse\DemolishOrderController;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
+use App\Http\Controllers\Warehouse\InventoryAuditController;
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Finance\FinancePricingController; 
@@ -448,6 +450,17 @@ Route::prefix('warehouse')
             Route::post('/{id}', 'update')->name('update');
             Route::delete('/{id}', 'destroy')->name('destroy');
         });
+
+        Route::controller(InventoryAuditController::class)
+            ->prefix('inventory-audits')
+            ->group(function () {
+                Route::get('/', 'index');                  // جلب كافة طلبات الجرد مع الفلاتر
+                Route::get('/audit-data', 'getAuditData');  // جلب الهيكل الشجري لبدء الجرد (أقسام -> مواد -> دفعات)
+                Route::get('/{id}', 'show');               // جلب تفاصيل طلب جرد محدد
+                Route::post('/', 'store');                 // إنشاء طلب جرد جديد
+                Route::post('/{id}/approve', 'approve');   // موافقة الأدمن على الجرد
+                Route::post('/{id}/reject', 'reject');     // رفض الأدمن للجرد
+            });
     });
 
 Route::prefix('tester')
