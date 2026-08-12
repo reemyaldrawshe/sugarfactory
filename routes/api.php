@@ -12,6 +12,7 @@ use App\Http\Controllers\Warehouse\DemolishOrderController;
 use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
 use App\Http\Controllers\Warehouse\InventoryAuditController;
+use App\Http\Controllers\Warehouse\ReportController;
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UnitController;
@@ -376,7 +377,13 @@ Route::prefix('warehouse')
 
 
             });
-
+// --- مسارات التقارير (إضافة مسار التقارير الجديد) ---
+        Route::controller(ReportController::class)
+            ->prefix('reports')
+            ->group(function () {
+                Route::get('/', 'index');
+                   // ->name('warehouse.reports.index');
+            });
         // 🚚 Shipments
         Route::controller(WarehouseShipmentController::class)
             ->prefix('shipments')
@@ -450,6 +457,7 @@ Route::prefix('warehouse')
             Route::post('/{id}', 'update')->name('update');
             Route::delete('/{id}', 'destroy')->name('destroy');
         });
+        
 
         Route::controller(InventoryAuditController::class)
             ->prefix('inventory-audits')
