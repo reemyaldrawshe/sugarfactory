@@ -14,7 +14,7 @@ class ItemSeeder extends Seeder
         $items = [
             [
                 'name' => 'سكر أبيض',
-                'image' => public_path('seeder/images/sugar-svgrepo-com.svg'),
+              //  'image' => public_path('seeder/images/sugar-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'منتج نهائي')->first()['id'],
                 'is_raw_material' => false,
@@ -22,7 +22,7 @@ class ItemSeeder extends Seeder
             ],
             [
                 'name' => 'قصب السكر',
-                'image' => public_path('seeder/images/sugar-cane-svgrepo-com.svg'),
+              //  'image' => public_path('seeder/images/sugar-cane-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
                 'is_raw_material' => true,
@@ -30,7 +30,7 @@ class ItemSeeder extends Seeder
             ],
             [
                 'name' => 'ماء',
-                'image' => public_path('seeder/images/water-tank-svgrepo-com.svg'),
+              //  'image' => public_path('seeder/images/water-tank-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'liter')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
                 'is_raw_material' => true,
@@ -38,7 +38,7 @@ class ItemSeeder extends Seeder
             ],
             [
                 'name' => 'مواد كيميائية',
-                'image' => public_path('seeder/images/test-tubes-chemical-svgrepo-com.svg'),
+               // 'image' => public_path('seeder/images/test-tubes-chemical-svgrepo-com.svg'),
                 'unit_id' => Unit::query()->where('name', '=', 'kg')->first()['id'],
                 'section_id' => Section::query()->where('ar_name', '=', 'مواد خام')->first()['id'],
                 'is_raw_material' => true,
@@ -55,17 +55,17 @@ class ItemSeeder extends Seeder
                 'selling_price' => $data['selling_price'], // إدراج السعر هنا
             ]);
 
-            // إضافة صورة إذا كانت موجودة
-            if (file_exists($data['image'])) {
-                $media = $item->addMedia($data['image'])
-                    ->preservingOriginal()
-                    ->toMediaCollection('item_image');
+            // // إضافة صورة إذا كانت موجودة
+            // if (file_exists($data['image'])) {
+            //     $media = $item->addMedia($data['image'])
+            //         ->preservingOriginal()
+            //         ->toMediaCollection('item_image');
                 
-                // تحديث حقل الصورة بالرابط الكامل
-                $item->update([
-                    'image' => $media->getFullUrl()
-                ]);
-            }
+            //     // تحديث حقل الصورة بالرابط الكامل
+            //     $item->update([
+            //         'image' => $media->getFullUrl()
+            //     ]);
+            // }
         }
     }
 }

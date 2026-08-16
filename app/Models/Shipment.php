@@ -6,9 +6,12 @@ use App\Enums\ShipmentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-
-class Shipment extends Model
+// 💡 1. إضافة كلاسات Spatie
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+class Shipment extends Model implements HasMedia
 {
+    use InteractsWithMedia;
     protected $guarded = [];
 
     protected $casts = [
@@ -17,14 +20,25 @@ class Shipment extends Model
         'admin_approved_at' => 'datetime',
         'paid_at' => 'datetime',
 
-        'invoice_images' => 'array', // 💡 التعديل الجديد هنا: لتحويل حقل الصور إلى مصفوفة تلقائياً
+      //  'invoice_images' => 'array', // 💡 التعديل الجديد هنا: لتحويل حقل الصور إلى مصفوفة تلقائياً
         'purchase_updated_at' => 'datetime',
         'warehouse_confirmed_at' => 'datetime',
         'sent_to_lab_at' => 'datetime',
         'lab_approved_at' => 'datetime',
         'final_confirmed_at' => 'datetime',
     ];
+protected $appends = [
+        'invoice_images',
+    ];
 
+    // 💡 5. دالة جلب روابط كل الفواتير كمصفوفة
+    public function getInvoiceImagesAttribute(): array
+    {
+        // جلب كل الصور المرتبطة بالفواتير وتحويلها لمصفوفة روابط
+        return $this->getMedia('invoice_images')->map(function ($media) {
+            return $media->getFullUrl();
+        })->toArray();
+    }
     // protected $appends = [
     //     'total_price',
     // ];

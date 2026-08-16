@@ -34,7 +34,7 @@ return new class extends Migration
             $table->text('lab_rejection_reason')->nullable();
             $table->foreignId('final_confirmed_by')->nullable()->constrained('users');
             $table->timestamp('final_confirmed_at')->nullable();
-            $table->json('invoice_images')->nullable(); // هنا سيتم حفظ مصفوفة روابط الصور
+           // $table->json('invoice_images')->nullable(); // هنا سيتم حفظ مصفوفة روابط الصور
             $table->text('notes')->nullable();
             $table->timestamps();
 

@@ -63,7 +63,7 @@ class ShipmentSeeder extends Seeder
                     // 💡 تاريخ انتهاء مختلف لكل دفعة (نزيد شهر مع كل لفة بالـ loop)
                     'expiry_date' => now()->addMonths($i + 6)->format('Y-m-d'),
                     
-                    'invoice_image' => null,
+                   // 'invoice_image' => null,
                     'lab_test_file' => null,
                     'note' => "دفعة سكر أبيض رقم {$i} بوزن 25 طن",
                     'price_history' => json_encode([
@@ -112,7 +112,7 @@ class ShipmentSeeder extends Seeder
                     'quantity_received' => 5000,
                     'price' => rand(10, 100),
                     'expiry_date' => now()->addMonths(rand(12, 24))->format('Y-m-d'),
-                    'invoice_image' => null,
+                    //'invoice_image' => null,
                     'lab_test_file' => null,
                     'note' => 'دفعة للمادة الخام: ' . $item->name,
                     'price_history' => json_encode([

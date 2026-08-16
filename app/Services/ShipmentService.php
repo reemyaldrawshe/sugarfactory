@@ -186,19 +186,26 @@ class ShipmentService
             }
 
             // 💡 التعديل الجديد: معالجة رفع صور الفواتير المتعددة للطلب ككل
+            // if (isset($data['invoice_images']) && is_array($data['invoice_images'])) {
+            //     // جلب الصور القديمة في حال تم التعديل لاحقاً، أو إنشاء مصفوفة فارغة
+            //     $uploadedImages = $shipment->invoice_images ?? []; 
+                
+            //     foreach ($data['invoice_images'] as $image) {
+            //         // حفظ الصورة في مجلد public/invoices
+            //         $path = $image->store('invoices', 'public');
+            //         $uploadedImages[] = $path;
+            //     }
+                
+            //     // حفظ المسارات في الشحنة
+            //     $shipment->invoice_images = $uploadedImages;
+            //     $shipment->save();
+            // }
+            // 💡 التعديل الجديد: معالجة رفع صور الفواتير المتعددة باستخدام Spatie
             if (isset($data['invoice_images']) && is_array($data['invoice_images'])) {
-                // جلب الصور القديمة في حال تم التعديل لاحقاً، أو إنشاء مصفوفة فارغة
-                $uploadedImages = $shipment->invoice_images ?? []; 
-                
                 foreach ($data['invoice_images'] as $image) {
-                    // حفظ الصورة في مجلد public/invoices
-                    $path = $image->store('invoices', 'public');
-                    $uploadedImages[] = $path;
+                    // المكتبة ستقوم بحفظ الصورة تلقائياً وربطها بهذه الشحنة
+                    $shipment->addMedia($image)->toMediaCollection('invoice_images');
                 }
-                
-                // حفظ المسارات في الشحنة
-                $shipment->invoice_images = $uploadedImages;
-                $shipment->save();
             }
             $totalPrice = 0;
 

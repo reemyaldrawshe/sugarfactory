@@ -41,14 +41,23 @@ class ItemService
     */
     public function store(array $data): Item
     {
+        // $item = Item::create(collect($data)->except('image')->toArray());
+
+        // if (isset($data['image'])) {
+        //     $media = $item->addMediaFromRequest('image')
+        //         ->toMediaCollection('item_image');
+        //     $item['image'] = $media->getFullUrl();
+        //     $item->save();
+        // }
+        // return $item->refresh();
+        // إنشاء العنصر وتجاهل حقل الصورة من الداتا المرسلة
         $item = Item::create(collect($data)->except('image')->toArray());
 
+        // إذا تم إرسال صورة، المكتبة سترفعها وتحفظ مسارها في جدولها الخاص
         if (isset($data['image'])) {
-            $media = $item->addMediaFromRequest('image')
-                ->toMediaCollection('item_image');
-            $item['image'] = $media->getFullUrl();
-            $item->save();
+            $item->addMediaFromRequest('image')->toMediaCollection('item_image');
         }
+        
         return $item->refresh();
     }
 
@@ -70,19 +79,31 @@ class ItemService
     public function update($item, array $data): Item
     {
 
+        // $item->update(collect($data)->except('image')->toArray());
+
+        // // فقط إذا تم إرسال صورة جديدة
+        // if (isset($data['image'])) {
+        //     // حذف الصور القديمة
+        //     $item->clearMediaCollection('item_image');
+
+        //     // إضافة الصورة الجديدة
+        //     $media = $item->addMediaFromRequest('image')
+        //         ->toMediaCollection('item_image');
+
+        //     $item['image'] = $media->getFullUrl();
+        //     $item->save();
+        // }
+
+        // return $item->refresh();
         $item->update(collect($data)->except('image')->toArray());
 
         // فقط إذا تم إرسال صورة جديدة
         if (isset($data['image'])) {
-            // حذف الصور القديمة
+            // حذف الصور القديمة من المكتبة
             $item->clearMediaCollection('item_image');
 
             // إضافة الصورة الجديدة
-            $media = $item->addMediaFromRequest('image')
-                ->toMediaCollection('item_image');
-
-            $item['image'] = $media->getFullUrl();
-            $item->save();
+            $item->addMediaFromRequest('image')->toMediaCollection('item_image');
         }
 
         return $item->refresh();

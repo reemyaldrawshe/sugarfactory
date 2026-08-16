@@ -20,7 +20,17 @@ class DemolishOrder extends Model implements HasMedia
         'item_id' => 'integer',
         'shipment_id' => 'integer',
     ];
+// 💡 1. إخفاء علاقة الـ media المعقدة وإضافة حقل الصور النظيف
+    protected $hidden = ['media'];
+    protected $appends = ['images'];
 
+    // 💡 2. دالة جلب روابط صور الإتلاف كمصفوفة (Array)
+    public function getImagesAttribute(): array
+    {
+        return $this->getMedia('demolish_images')->map(function ($media) {
+            return $media->getFullUrl();
+        })->toArray();
+    }
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);

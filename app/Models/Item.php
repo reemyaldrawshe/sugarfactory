@@ -19,7 +19,7 @@ class Item extends Model implements HasMedia
    // protected $appends = ['quantity', 'bom'];
 
     protected $hidden = ['media'];
-    protected $appends = ['quantity', 'bom', 'section_name', 'unit_name', 'expired_count', 'expiring_soon_count','good_count','total_batches_count' ];
+    protected $appends = ['quantity', 'bom', 'section_name', 'unit_name', 'expired_count', 'expiring_soon_count','good_count','total_batches_count','image' ];
     
     /*
     |--------------------------------------------------------------------------
@@ -81,11 +81,18 @@ public function getGoodCountAttribute() {
                 'is_primary' => $bom->is_primary??null,
                 'unit' => $bom->basicItem->unit->name ?? null,
                 'quantity' => $bom->basic_item_quantity,
+                'image' => $bom->basicItem->image ?? null,
             ];
         })
         ->values()
         ->toArray();
 }
+// جلب رابط الصورة ديناميكياً باستخدام مكتبة Spatie
+    public function getImageAttribute() 
+    {
+        $url = $this->getFirstMediaUrl('item_image');
+        return $url ?: null; // إذا لم يكن هناك صورة يرجع null
+    }
     /*
     |--------------------------------------------------------------------------
     | Relationships
