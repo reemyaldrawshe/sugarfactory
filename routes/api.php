@@ -13,7 +13,7 @@ use App\Http\Middleware\SetLocaleMiddleware;
 use App\Http\Controllers\Warehouse\ItemController;
 use App\Http\Controllers\Warehouse\InventoryAuditController;
 use App\Http\Controllers\Warehouse\ReportController;
-
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Finance\FinancePricingController; 
@@ -722,5 +722,10 @@ Route::prefix('production')
             });
             
     });
+Route::middleware(['auth:sanctum'])->group(function () {
 
+    // ✅ مسار تحديث FCM Token
+    Route::post('/fcm-token', [NotificationController::class, 'updateFcmToken']);
+
+});
 

@@ -4,31 +4,35 @@ namespace App\Services\Distribution;
 
 use App\Models\DistributionOrder;
 use App\Models\Item;
+use App\Models\User;
 use App\Enums\ProductionStatusEnum;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class DistributionOrderService
 {
+    public function __construct(
+        protected NotificationService $notificationService
+    ) {}
 
-/**
+    /**
      * جلب قائمة طلبات التوزيع مع كافة تفاصيل المواد والدفعات المخصصة لها
      */
     public function getAllWithFullDetails()
     {
         return DistributionOrder::query()
             ->with([
-                'user:id,name', // معلومات الموظف الذي أنشأ الطلب
-                'items.item:id,name,sku', // المواد المطلوبة داخل الطلب مع اسمها وكودها
+                'user:id,name',
+                'items.item:id,name,sku',
                 'batchAllocations' => function ($query) {
-                    // جلب تفاصيل سحب الدفعات مرتبة حسب الصلاحية لسهولة القراءة
                     $query->with(['shipmentItem:id,batch_number,expiry_date']);
                 }
             ])
-            ->latest() // ترتيب من الأحدث إلى الأقدم
+            ->latest()
             ->get()
             ->map(function ($order) {
-                // 💡 هندسة البيانات لتسهيل قراءتها على الـ Front-End
                 return [
                     'id' => $order->id,
                     'customer_name' => $order->customer_name,
@@ -38,10 +42,7 @@ class DistributionOrderService
                     'created_at' => $order->created_at->toDateTimeString(),
                     'approved_at' => $order->approved_at?->toDateTimeString(),
                     
-                    // المواد المطلوبة
                     'requested_items' => $order->items->map(function ($item) use ($order) {
-                        
-                        // فلترة الدفعات المخصصة لهذه المادة بالتحديد داخل هذا الطلب
                         $allocations = $order->batchAllocations
                             ->where('distribution_order_item_id', $item->id);
 
@@ -53,7 +54,6 @@ class DistributionOrderService
                             'price_per_ton' => (float) $item->price_per_ton,
                             'total_price' => (float) $item->total_price,
                             
-                            // 🚚 خطة السحب من الدفعات لأمين المستودع (خوارزمية FEFO المطبقة)
                             'warehouse_withdrawal_plan' => $allocations->map(function ($alloc) {
                                 return [
                                     'batch_number' => $alloc->shipmentItem?->id ?? 'N/A',
@@ -66,12 +66,12 @@ class DistributionOrderService
                 ];
             });
     }
+
     /**
      * إنشاء طلب مبيعات/توزيع جديد مع مواده
      */
     public function create(array $data)
     {
-        // استخدام Transaction لضمان حفظ الطلب ومواده معاً أو التراجع عن كل شيء في حال الخطأ
         return DB::transaction(function () use ($data) {
             
             // 1. إنشاء الطلب الرئيسي
@@ -86,41 +86,75 @@ class DistributionOrderService
             foreach ($data['items'] as $requestedItem) {
                 $item = Item::findOrFail($requestedItem['item_id']);
 
-                // التحقق: لا يمكن بيع المواد الخام مباشرة (اختياري حسب البزنس لوجيك عندك)
                 if ($item->is_raw_material == 1) {
                     throw ValidationException::withMessages([
                         'items' => "عذراً، المادة ({$item->name}) هي مادة خام ولا يمكن إضافتها لطلب مبيعات."
                     ]);
                 }
 
-                // 💡 أخذ لقطة (Snapshot) للسعر الحالي للمادة من قسم المالية
-                // افترضت أن حقل السعر في جدول المواد اسمه price، يمكنك تغييره حسب اسم الحقل لديك
-                // $currentPricePerTon = $item->selling_price ?? 0; 
-                // $quantity = (float) $requestedItem['quantity'];
-                
-                // // حساب السعر الإجمالي لهذا السطر
-                // $totalPrice = $quantity * $currentPricePerTon;
-// 2. 💡 التحقق الوقائي الجديد: التأكد من أن المادة مسعّرة في النظام
-if (is_null($item->selling_price) || $item->selling_price <= 0) {
-    throw ValidationException::withMessages([
-        'items' => "عذراً، المادة ({$item->name}) لم يتم تحديد سعر بيع صالح لها من قسم المالية بعد."
-    ]);
-}
+                if (is_null($item->selling_price) || $item->selling_price <= 0) {
+                    throw ValidationException::withMessages([
+                        'items' => "عذراً، المادة ({$item->name}) لم يتم تحديد سعر بيع صالح لها من قسم المالية بعد."
+                    ]);
+                }
 
-$currentPricePerTon = (float) $item->selling_price;
-$quantity = (float) $requestedItem['quantity'];
-$totalPrice = $quantity * $currentPricePerTon;
-                // 3. إنشاء سطر تفاصيل المادة داخل الطلب
+                $currentPricePerTon = (float) $item->selling_price;
+                $quantity = (float) $requestedItem['quantity'];
+                $totalPrice = $quantity * $currentPricePerTon;
+
                 $order->items()->create([
                     'item_id'       => $item->id,
                     'quantity'      => $quantity,
-                    'price_per_ton' => $currentPricePerTon, // تم التثبيت التاريخي للسعر
+                    'price_per_ton' => $currentPricePerTon,
                     'total_price'   => $totalPrice,
                 ]);
             }
 
-            // إرجاع الطلب مع مواده المحملة لعرضه في الاستجابة (API Response)
+            // 🔔 3. إرسال إشعار للمدير بوجود طلب بيع جديد بحاجة لموافقة
+            $adminUsers = $this->getUsersByRoles(['admin']);
+            $this->notifyUsers(
+                $adminUsers,
+                'طلب بيع جديد بانتظار الموافقة',
+                "تم إنشاء طلب مبيعات جديد رقم #{$order->id} للعميل ({$order->customer_name})",
+                'dist_pending',
+                ['distribution_order_id' => $order->id]
+            );
+
             return $order->load('items.item');
         });
+    }
+
+    /**
+     * 🔍 جلب المستخدمين حسب الأدوار
+     */
+    private function getUsersByRoles(array $roles)
+    {
+        if (method_exists(User::class, 'scopeRole')) {
+            return User::role($roles)->get();
+        }
+
+        return User::whereIn('role', $roles)->get();
+    }
+
+    /**
+     * 📩 إرسال الإشعار وحفظه عبر NotificationService
+     */
+    private function notifyUsers($users, string $title, string $message, string $type = 'distribution', array $extraData = [])
+    {
+        if (!$users || (is_countable($users) && count($users) === 0)) {
+            return;
+        }
+
+        if ($users instanceof User) {
+            $users = collect([$users]);
+        }
+
+        foreach ($users as $user) {
+            try {
+                $this->notificationService->send($user, $title, $message, $type, $extraData);
+            } catch (\Throwable $e) {
+                Log::error("Failed to send notification to user ID {$user->id}: " . $e->getMessage());
+            }
+        }
     }
 }

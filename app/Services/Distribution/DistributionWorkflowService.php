@@ -4,12 +4,19 @@ namespace App\Services\Distribution;
 
 use App\Models\DistributionOrder;
 use App\Models\ShipmentItem;
+use App\Models\User;
 use App\Enums\ProductionStatusEnum;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class DistributionWorkflowService
 {
+    public function __construct(
+        protected NotificationService $notificationService
+    ) {}
+
     /**
      * 1. موافقة المدير على طلب التوزيع
      */
@@ -17,7 +24,6 @@ class DistributionWorkflowService
     {
         $order = DistributionOrder::findOrFail($orderId);
 
-        // التحقق من أن الطلب جديد
         if ($order->status !== ProductionStatusEnum::DIST_PENDING->value) {
             throw ValidationException::withMessages([
                 'status' => 'لا يمكن الموافقة على الطلب، فهو ليس في حالة قيد الانتظار.'
@@ -28,6 +34,16 @@ class DistributionWorkflowService
             'status'      => ProductionStatusEnum::DIST_APPROVED->value,
             'approved_at' => now(),
         ]);
+
+        // 🔔 إشعار لأمين المستودع لوجود طلب صرف مبيعات جديد جاهز للحجز
+        $warehouseUsers = $this->getUsersByRoles(['warehouse']);
+        $this->notifyUsers(
+            $warehouseUsers,
+            'طلب صرف مبيعات جديد',
+            "وافق المدير على طلب المبيعات رقم #{$order->id} وهو جاهز للحجز والصرف",
+            'dist_approved',
+            ['distribution_order_id' => $order->id]
+        );
 
         return $order;
     }
@@ -49,6 +65,18 @@ class DistributionWorkflowService
             'status' => ProductionStatusEnum::DIST_REJECTED->value,
         ]);
 
+        // 🔔 إشعار لمُنشئ الطلب (أو قسم المبيعات) برفض الطلب
+        $creator = User::find($order->user_id);
+        if ($creator) {
+            $this->notifyUsers(
+                $creator,
+                'تم رفض طلب المبيعات',
+                "تم رفض طلب المبيعات رقم #{$order->id} من قبل الإدارة",
+                'dist_rejected',
+                ['distribution_order_id' => $order->id]
+            );
+        }
+
         return $order;
     }
 
@@ -57,26 +85,20 @@ class DistributionWorkflowService
      */
     public function reserveMaterials($orderId)
     {
-        // استخدام Transaction لضمان تراجع النظام عن السحب في حال نقص كمية إحدى المواد
         return DB::transaction(function () use ($orderId) {
             
-            // جلب الطلب مع المواد المطلوبة بداخله
             $order = DistributionOrder::with('items.item')->findOrFail($orderId);
 
-            // التحقق من الموافقة
             if ($order->status !== ProductionStatusEnum::DIST_APPROVED->value) {
                 throw ValidationException::withMessages([
                     'status' => 'عذراً، يجب أن يحصل الطلب على موافقة الإدارة أولاً لتتمكن من حجز مواده.'
                 ]);
             }
 
-            // المرور على كل مادة موجودة في الفاتورة (طلب البيع)
             foreach ($order->items as $orderItem) {
                 
                 $quantityNeeded = (float) $orderItem->quantity;
 
-                // 💡 جلب الدفعات المتوفرة لهذه المادة وترتيبها من الأقدم للأحدث (FEFO)
-                // lockForUpdate(): تمنع أي عملية أخرى من سحب نفس الدفعات حتى تنتهي هذه العملية
                 $availableBatches = ShipmentItem::query()
                     ->where('item_id', $orderItem->item_id)
                     ->where('quantity_received', '>', 0)
@@ -84,7 +106,6 @@ class DistributionWorkflowService
                     ->lockForUpdate() 
                     ->get();
 
-                // حساب المجموع الكلي المتوفر للتأكد من قدرتنا على تلبية الطلب
                 $totalAvailable = $availableBatches->sum('quantity_received');
 
                 if ($totalAvailable < $quantityNeeded) {
@@ -93,20 +114,16 @@ class DistributionWorkflowService
                     ]);
                 }
 
-                // سحب الكمية المطلوبة من الدفعات (قد نسحب من دفعة واحدة أو نتدرج لعدة دفعات)
                 foreach ($availableBatches as $batch) {
                     
                     if ($quantityNeeded <= 0) {
-                        break; // تم تلبية كمية هذا السطر، ننتقل للسطر/المادة التالية
+                        break;
                     }
 
-                    // نأخذ إما الكمية المتوفرة في الدفعة، أو ما تبقى من احتياجنا (أيهما أقل)
                     $takeQuantity = min($batch->quantity_received, $quantityNeeded);
 
-                    // 1. خصم الكمية من المستودع الفعلي
                     $batch->decrement('quantity_received', $takeQuantity);
 
-                    // 2. تسجيل التوثيق في جدول الحجوزات الوسيط
                     $order->batchAllocations()->create([
                         'distribution_order_item_id' => $orderItem->id,
                         'item_id'                    => $orderItem->item_id,
@@ -114,29 +131,37 @@ class DistributionWorkflowService
                         'allocated_quantity'         => $takeQuantity,
                     ]);
 
-                    // 3. إنقاص الكمية المتبقية التي نحتاجها
                     $quantityNeeded -= $takeQuantity;
                 }
             }
 
-            // تحديث حالة الطلب إلى "تم حجز المواد"
             $order->update([
                 'status' => ProductionStatusEnum::DIST_MATERIALS_RESERVED->value,
             ]);
 
-            // إرجاع الطلب مع تفاصيل الدفعات التي تم سحبها
+            // 🔔 إشعار لقسم المبيعات/مُنشئ الطلب بتجهيز وحجز المواد بالمستودع
+            $creator = User::find($order->user_id);
+            if ($creator) {
+                $this->notifyUsers(
+                    $creator,
+                    'تم تجهيز وحجز البضاعة',
+                    "قام أمين المستودع بحجز وتجهيز المواد لطلب المبيعات رقم #{$order->id}",
+                    'dist_materials_reserved',
+                    ['distribution_order_id' => $order->id]
+                );
+            }
+
             return $order->load('batchAllocations.shipmentItem', 'items.item');
         });
     }
+
     /**
      * 4. خروج البضاعة من المستودع للتوصيل (Dispatched)
-     * يتم استدعاؤها عندما تغادر الشاحنة باب المستودع
      */
     public function dispatchOrder($orderId)
     {
         $order = DistributionOrder::findOrFail($orderId);
 
-        // يجب أن تكون المواد محجوزة ومجهزة أولاً
         if ($order->status !== ProductionStatusEnum::DIST_MATERIALS_RESERVED->value) {
             throw ValidationException::withMessages([
                 'status' => 'لا يمكن إرسال البضاعة للتوصيل إلا بعد حجز موادها من المستودع.'
@@ -148,16 +173,26 @@ class DistributionWorkflowService
             'dispatched_at' => now(),
         ]);
 
+        // 🔔 إشعار لقسم المبيعات بأن البضاعة خرجت للتوصيل
+        $creator = User::find($order->user_id);
+        if ($creator) {
+            $this->notifyUsers(
+                $creator,
+                'الطلب في الطريق للتوصيل',
+                "تم شحن وخروج البضاعة لطلب المبيعات رقم #{$order->id} وهي في الطريق للعميل",
+                'dist_dispatched',
+                ['distribution_order_id' => $order->id]
+            );
+        }
+
         return $order;
     }
 
     /**
      * 5. تأكيد استلام العميل للطلبية وإتمام البيع (Sold)
-     * يتم استدعاؤها عندما يسلم المندوب البضاعة ويؤكد العميل الاستلام
      */
     public function confirmSale($orderId)
     {
-        // نستخدم Transaction هنا تحسباً لإضافة عمليات مالية لاحقاً (مثل توليد قيود محاسبية)
         return DB::transaction(function () use ($orderId) {
             
             $order = DistributionOrder::findOrFail($orderId);
@@ -173,15 +208,51 @@ class DistributionWorkflowService
                 'sold_at' => now(),
             ]);
 
-            /*
-             * 💡 منطقة الربط مع المالية (Financial Integration):
-             * هنا بالتحديد، وبمجرد تحول الحالة إلى SOLD، يمكنك مستقبلاً
-             * استدعاء خدمة المالية لترحيل الأرباح وإصدار الفاتورة النهائية.
-             * مثال توضيحي:
-             * FinancialService::generateInvoice($order);
-             */
+            // 🔔 إشعار لقسم المالية والمدير بتموم البيع
+            $financeAndAdmin = $this->getUsersByRoles(['finance', 'admin']);
+            $this->notifyUsers(
+                $financeAndAdmin,
+                'إتمام عملية بيع',
+                "تم تأكيد استلام العميل وإتمام عملية البيع للطلب رقم #{$order->id}",
+                'dist_sold',
+                ['distribution_order_id' => $order->id]
+            );
 
             return $order;
         });
+    }
+
+    /**
+     * 🔍 جلب المستخدمين حسب الأدوار
+     */
+    private function getUsersByRoles(array $roles)
+    {
+        if (method_exists(User::class, 'scopeRole')) {
+            return User::role($roles)->get();
+        }
+
+        return User::whereIn('role', $roles)->get();
+    }
+
+    /**
+     * 📩 إرسال الإشعار وحفظه عبر NotificationService
+     */
+    private function notifyUsers($users, string $title, string $message, string $type = 'distribution', array $extraData = [])
+    {
+        if (!$users || (is_countable($users) && count($users) === 0)) {
+            return;
+        }
+
+        if ($users instanceof User) {
+            $users = collect([$users]);
+        }
+
+        foreach ($users as $user) {
+            try {
+                $this->notificationService->send($user, $title, $message, $type, $extraData);
+            } catch (\Throwable $e) {
+                Log::error("Failed to send notification to user ID {$user->id}: " . $e->getMessage());
+            }
+        }
     }
 }
