@@ -19,13 +19,21 @@ class Item extends Model implements HasMedia
    // protected $appends = ['quantity', 'bom'];
 
     protected $hidden = ['media'];
-    protected $appends = ['quantity', 'bom', 'section_name', 'unit_name', 'expired_count', 'expiring_soon_count','good_count','total_batches_count','image' ];
+    protected $appends = ['quantity','reserved_quantity', 'bom', 'section_name', 'unit_name', 'expired_count', 'expiring_soon_count','good_count','total_batches_count','image' ];
     
     /*
     |--------------------------------------------------------------------------
     | Accessors
     |--------------------------------------------------------------------------
     */
+    // 2. دالة حساب مجموع الكميات المحجوزة من جميع الدفعات
+    public function getReservedQuantityAttribute(): int
+    {
+       // return (int) $this->shipmentItems()->sum('quantity_reserved');
+       return (int) $this->shipmentItems()
+            ->where('quantity_received', '>', 0)
+            ->sum('quantity_reserved');
+    }
 // اسم القسم
     public function getSectionNameAttribute() {
         return $this->section->name ?? null;
@@ -38,22 +46,26 @@ class Item extends Model implements HasMedia
 public function getTotalBatchesCountAttribute() {
     // نستخدم -> (بدون أقواس) لأننا نريد العدد من المجموعة المحملة مسبقاً (Eager Loading)
     // هذا أسرع بكثير من عمل استعلام جديد لقاعدة البيانات
-    return $this->shipmentItems->count();
+    return $this->shipmentItems->where('quantity_received', '>', 0)
+->count();
 }
     // عدد الدفعات منتهية الصلاحية
     public function getExpiredCountAttribute() {
         return $this->shipmentItems()
+            ->where('quantity_received', '>', 0)
             ->where('expiry_date', '<', Carbon::now())
             ->count();
     }
 public function getGoodCountAttribute() {
     return $this->shipmentItems()
+                ->where('quantity_received', '>', 0)
         ->where('expiry_date', '>', Carbon::now()->addMonth())
         ->count();
 }
     // عدد الدفعات التي ستنتهي خلال شهر
     public function getExpiringSoonCountAttribute() {
         return $this->shipmentItems()
+                    ->where('quantity_received', '>', 0)
             ->where('expiry_date', '>=', Carbon::now())
             ->where('expiry_date', '<=', Carbon::now()->addMonth())
             ->count();

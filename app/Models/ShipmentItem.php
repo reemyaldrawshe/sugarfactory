@@ -25,6 +25,7 @@ class ShipmentItem extends Model implements HasMedia
         'price_history' => 'array',
         'quantity_history' => 'array',
         'expiry_date' => 'date',
+        'quantity_reserved' => 'integer', // تحويل القيمة إلى رقم صحيح
 
     ];
     // 2. دالة الـ Accessor لحساب حالة الصلاحية ديناميكياً
