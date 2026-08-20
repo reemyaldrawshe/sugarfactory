@@ -138,7 +138,7 @@ class ShipmentService
             );
 
             // 🔔 إشعار للمدير والمستودع بدفع الشحنة
-            $targetUsers = $this->getUsersByRoles(['admin', 'warehouse']);
+            $targetUsers = $this->getUsersByRoles(['admin']);
             $this->notifyUsers(
                 $targetUsers,
                 'تم دفع قيمة الشحنة',
@@ -235,7 +235,7 @@ class ShipmentService
             $shipment->recordStatusChange($oldStatus, $salesUser, 'Purchase request updated with prices, quantities and invoices');
 
             // 🔔 إرسال إشعار لأمين المستودع للاستلام
-            $warehouseUsers = $this->getUsersByRoles(['warehouse']);
+            $warehouseUsers = $this->getUsersByRoles(['warehouse','admin']);
             $this->notifyUsers(
                 $warehouseUsers,
                 'طلب جاهز للاستلام',
@@ -272,7 +272,7 @@ class ShipmentService
             $shipment->recordStatusChange($oldStatus, $warehouseUser, 'Warehouse confirmed receipt before lab testing');
 
             // 🔔 إرسال إشعار للمخبر بوجود شحنة جديدة تتطلب الفحص
-            $labUsers = $this->getUsersByRoles(['tester']); 
+            $labUsers = $this->getUsersByRoles(['tester','admin']); 
             $this->notifyUsers(
                 $labUsers,
                 'شحنة جديدة للفحص المخبري',
@@ -305,7 +305,7 @@ class ShipmentService
             ]);
 
             // 🔔 إرسال إشعار للمخبر بأن هناك شحنة بانتظار الفحص
-            $labUsers = $this->getUsersByRoles(['tester']);
+            $labUsers = $this->getUsersByRoles(['tester','admin']);
             $this->notifyUsers(
                 $labUsers,
                 'طلب فحص مخبري',
@@ -464,7 +464,7 @@ class ShipmentService
             }
 
             // 🔔 إرسال إشعار للمالية بأن الفاتورة جاهزة للدفع
-            $financeUsers = $this->getUsersByRoles(['finance']);
+            $financeUsers = $this->getUsersByRoles(['finance','admin']);
             $this->notifyUsers(
                 $financeUsers,
                 'فاتورة شحنة جديدة',

@@ -36,8 +36,7 @@ $table->decimal('quantity_reserved', 16, 6)->default(0.000000);
             $table->json('quantity_history')->nullable(); // Track quantity changes
             $table->timestamps();
 
-            $table->unique(['shipment_id', 'item_id']);
-        });
+      $table->unique(['shipment_id', 'production_order_id', 'item_id'], 'unique_shipment_item_batch');        });
     }
 
     /**

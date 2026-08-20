@@ -136,18 +136,30 @@ public function complete(int $id, $producedQty, $expiryDate, $warehouseUser): Pr
         $finishedProductUnitPrice = $producedQty > 0 ? ($totalMaterialsCost / $producedQty) : 0;
             // 3. توليد الدفعة الجديدة (Batch) في جدول الـ shipment_items
             // تم ربطها بـ production_order_id لمعرفة مصدرها مستقبلاً
+            // $batch = ShipmentItem::create([
+            //     'item_id'             => $order->item_id,
+            //     'shipment_id'         => null, // فارغ لأن المصدر إنتاج وليس شحنة خارجية
+            //     'production_order_id' => $order->id, // 👈 ربط الدفعة بأمر الإنتاج الحالي
+            //     'quantity_required'   => $order->quantity??0,
+            //     'quantity_received'   => $producedQty,
+            //     'quantity_reserved'   => 0,
+            //     'unit_price'          => $finishedProductUnitPrice,
+            //     'price'              => $totalMaterialsCost, // السعر الكلي = سعر الوحدة * الكمية المنتجة
+            //     'expiry_date'         => $expiryDate, // التاريخ المدخل من المستخدم عبر الواجهة
+            //     'note'                => "دفعة ناتجة عن إغلاق أمر الإنتاج رقم #{$order->id}",
+            // ]);
             $batch = ShipmentItem::create([
-                'item_id'             => $order->item_id,
-                'shipment_id'         => null, // فارغ لأن المصدر إنتاج وليس شحنة خارجية
-                'production_order_id' => $order->id, // 👈 ربط الدفعة بأمر الإنتاج الحالي
-                'quantity_required'   => $order->quantity,
-                'quantity_received'   => $producedQty,
-                'quantity_reserved'   => 0,
-                'unit_price'          => $finishedProductUnitPrice,
-                'price'              => $totalMaterialsCost, // السعر الكلي = سعر الوحدة * الكمية المنتجة
-                'expiry_date'         => $expiryDate, // التاريخ المدخل من المستخدم عبر الواجهة
-                'note'                => "دفعة ناتجة عن إغلاق أمر الإنتاج رقم #{$order->id}",
-            ]);
+    'item_id'             => (int) $order->item_id,
+    'shipment_id'         => null,
+    'production_order_id' => (int) $order->id,
+    'quantity_required'   => (float) ($order->quantity ?? 0),
+    'quantity_received'   => (float) $producedQty, // 👈 تحويل صريح لمنع التعارض مع float cast
+    'quantity_reserved'   => 0.0,                  // 👈 إسناد float صريح
+    'unit_price'          => (float) $finishedProductUnitPrice,
+    'price'               => (float) $totalMaterialsCost,
+    'expiry_date'         => $expiryDate,
+    'note'                => "دفعة ناتجة عن إغلاق أمر الإنتاج رقم #{$order->id}",
+]);
 
             // 4. تحديث الكميات في المستودع الفعلي
             $this->inventoryService->increaseFinishedStock(
