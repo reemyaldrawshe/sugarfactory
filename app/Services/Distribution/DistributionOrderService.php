@@ -116,8 +116,10 @@ class DistributionOrderService
                 $adminUsers,
                 'طلب بيع جديد بانتظار الموافقة',
                 "تم إنشاء طلب مبيعات جديد رقم #{$order->id} للعميل ({$order->customer_name})",
-                'dist_pending',
-                ['distribution_order_id' => $order->id]
+                'distributionOrderService',
+            ['distribution_order_id' => $order->id,
+             'action'=>'create'
+            ]
             );
 
             return $order->load('items.item');

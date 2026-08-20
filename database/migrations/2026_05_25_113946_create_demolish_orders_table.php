@@ -19,8 +19,9 @@ return new class extends Migration
                 ->cascadeOnUpdate();
             $table->unsignedBigInteger('item_id');
             $table->unsignedBigInteger('shipment_id')->nullable();
-            $table->decimal('quantity', 10, 2);
-            $table->text('reason');
+           // $table->decimal('quantity', 10, 2);
+           $table->decimal('quantity', 16, 6);
+           $table->text('reason');
             $table->enum('status', ['pending', 'approved', 'rejected', 'completed'])->default('pending');
             $table->unsignedBigInteger('created_by');
             $table->unsignedBigInteger('approved_by')->nullable();

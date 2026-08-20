@@ -63,8 +63,10 @@ class ShipmentService
                 $admins,
                 'طلب شراء جديد',
                 "تم إنشاء طلب شراء جديد رقم #{$shipment->id} بواسطة {$userName}",
-                'purchase_request_created',
-                ['shipment_id' => $shipment->id]
+                'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'purchase_request_created'
+                ]
             );
 
             return $shipment->load('items.item.unit');
@@ -99,8 +101,10 @@ class ShipmentService
                 $targetUsers,
                 'موافقة على طلب الشراء',
                 "وافق المدير على طلب الشراء رقم #{$shipment->id} وهو جاهز للشراء الآن",
-                'admin_approved',
-                ['shipment_id' => $shipment->id]
+                'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'admin_approved'
+                ]
             );
 
             return $shipment;
@@ -139,8 +143,10 @@ class ShipmentService
                 $targetUsers,
                 'تم دفع قيمة الشحنة',
                 "تم دفع قيمة الشحنة رقم #{$shipment->id} من قبل قسم المالية",
-                'shipment_paid',
-                ['shipment_id' => $shipment->id]
+                'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'shipment_paid'
+                ]
             );
 
             return $shipment;
@@ -234,8 +240,10 @@ class ShipmentService
                 $warehouseUsers,
                 'طلب جاهز للاستلام',
                 "تم تحديث بيانات طلب الشراء رقم #{$shipment->id} وهو جاهز للاستلام في المستودع",
-                'ready_for_receipt',
-                ['shipment_id' => $shipment->id]
+                'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'ready_for_receipt'
+                ]
             );
 
             return $shipment->load('items.item');
@@ -269,8 +277,10 @@ class ShipmentService
                 $labUsers,
                 'شحنة جديدة للفحص المخبري',
                 "تم تأكيد استلام الشحنة رقم #{$shipment->id} وهي جاهزة للفحص في المختبر الآن",
-                'pending_lab',
-                ['shipment_id' => $shipment->id]
+                 'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'pending_lab'
+                ]
             );
 
             return $shipment;
@@ -300,8 +310,10 @@ class ShipmentService
                 $labUsers,
                 'طلب فحص مخبري',
                 "تم تحويل الشحنة رقم #{$shipment->id} إلى المخبر لطلب إجراء الفحص",
-                'sent_to_lab',
-                ['shipment_id' => $shipment->id]
+                 'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'sent_to_lab'
+                ]
             );
 
             return $shipment;
@@ -372,8 +384,10 @@ class ShipmentService
                 $targetUsers,
                 'قبول الفحص المخبري',
                 "اجتازت الشحنة رقم #{$shipment->id} الفحص المخبري بنجاح وتمت الموافقة عليها",
-                'lab_approved',
-                ['shipment_id' => $shipment->id]
+                 'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'lab_approved'
+                ]
             );
 
             return $shipment;
@@ -406,8 +420,10 @@ class ShipmentService
                 $targetUsers,
                 'رفض الفحص المخبري',
                 "تم رفض الشحنة رقم #{$shipment->id} من قبل المخبر. السبب: {$reason}",
-                'lab_rejected',
-                ['shipment_id' => $shipment->id]
+                 'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'lab_rejected'
+                ]
             );
 
             return $shipment;
@@ -453,8 +469,10 @@ class ShipmentService
                 $financeUsers,
                 'فاتورة شحنة جديدة',
                 "تم التأكيد النهائي للشحنة رقم #{$shipment->id} وإدخالها للمستودع، الفاتورة جاهزة للمعالجة المالية",
-                'final_confirmed',
-                ['shipment_id' => $shipment->id]
+                 'Shipment',
+                ['shipment_id' => $shipment->id,
+                'action'=>'final_confirmed'
+                ]
             );
 
             return $shipment;

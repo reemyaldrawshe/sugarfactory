@@ -32,9 +32,9 @@ return new class extends Migration
 
                 ->constrained('users')
                 ->cascadeOnDelete();
-            $table->integer('quantity')->nullable(); // المطلوب إنتاجه
-            $table->integer('produced_quantity')->default(0); // المنتج فعلياً
-            $table->integer('deviation')->default(0);
+$table->decimal('quantity', 16, 6)->nullable(); // الكمية المطلوبة
+            $table->decimal('produced_quantity', 16, 6)->default(0.000000); // المنتج فعلياً
+            $table->decimal('deviation', 16, 6)->default(0.000000); // الفرق/الانحراف
             $table->string('status')->default('pending');
             $table->timestamp('started_at')->nullable();
             $table->text('notes')->nullable();

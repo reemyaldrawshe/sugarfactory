@@ -29,8 +29,8 @@ return new class extends Migration
               ;
 
                // 💡 التعديل الثاني: استخدام decimal للسماح بالكميات التي تحتوي على فواصل عشرية (مثال: 87.1)
-            $table->decimal('required_quantity', 10, 2); 
-            $table->decimal('consumed_quantity', 10, 2)->default(0);
+           $table->decimal('required_quantity', 16, 6); 
+    $table->decimal('consumed_quantity', 16, 6)->default(0.000000);
                $table->timestamps();
         });
     }

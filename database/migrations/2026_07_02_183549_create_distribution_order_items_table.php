@@ -12,12 +12,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('distribution_order_id')->constrained('distribution_orders')->onDelete('cascade');
             $table->foreignId('item_id')->constrained('items')->comment('المنتج النهائي المباع');
-            $table->decimal('quantity', 12, 3)->comment('الكمية المطلوبة بالطن مثلاً');
+           // 💡 توحيد كمية المنتج النهائي لتكون بنفس دقة بقية جداول النظام (16, 6)
+            $table->decimal('quantity', 16, 6)->comment('الكمية المطلوبة (بالطن أو الكيلو)');
             
-            // 💡 تثبيت سعر البيع التاريخي لحساب الأرباح بدقة للمالية
-            $table->decimal('price_per_ton', 15, 2)->default(0.00)->comment('سعر الطن في لحظة البيع الفعلي');
-            $table->decimal('total_price', 15, 2)->default(0.00)->comment('إجمالي سعر الأسطر (الكمية × السعر)');
-            
+            // 💡 تثبيت سعر الوحدة التاريخي بدقة 4 خانات عشرية لحساب الأرباح والكسور بدقة
+            $table->decimal('price_per_ton', 16, 4)->default(0.0000)->comment('سعر الطن/الوحدة في لحظة البيع الفعلي');
+            $table->decimal('total_price', 16, 4)->default(0.0000)->comment('إجمالي سعر البند (الكمية × سعر الوحدة)');
             $table->timestamps();
         });
     }

@@ -9,12 +9,18 @@ use Illuminate\Validation\ValidationException;
 use App\Models\ShipmentItem;
 use App\Services\ItemTrackingService; // 👈 استدعاء خدمة التتبع
 use Illuminate\Support\Facades\DB;
+
+use App\Services\NotificationService;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
 class ProductionExecutionService
 {
     public function __construct(
         protected InventoryService $inventoryService,
         protected ProductionLogService $logService,
-        protected ItemTrackingService $trackingService // 👈 حقن خدمة التتبع هنا
+        protected ItemTrackingService $trackingService, // 👈 حقن خدمة التتبع هنا
+        protected    NotificationService $notificationService
+
     ) {}
 
     // public function start($id)
@@ -138,6 +144,7 @@ public function complete(int $id, $producedQty, $expiryDate, $warehouseUser): Pr
                 'quantity_received'   => $producedQty,
                 'quantity_reserved'   => 0,
                 'unit_price'          => $finishedProductUnitPrice,
+                'price'              => $totalMaterialsCost, // السعر الكلي = سعر الوحدة * الكمية المنتجة
                 'expiry_date'         => $expiryDate, // التاريخ المدخل من المستخدم عبر الواجهة
                 'note'                => "دفعة ناتجة عن إغلاق أمر الإنتاج رقم #{$order->id}",
             ]);
@@ -165,10 +172,53 @@ public function complete(int $id, $producedQty, $expiryDate, $warehouseUser): Pr
                     $warehouseUser     // المستخدم الحالي (أمين المستودع)
                 );
             }
+            $targetUsers = $this->getUsersByRoles(['warehouse', 'finance','admin']);
+
+            $this->notifyUsers(
+                $targetUsers,
+                'تم انهاء امر الانتاج',
+                "تم انتهاء عملية الانتاج #{$order->id} ",
+                'ProductionExecutionService',
+                ['order_id' => $order->id,
+                'action'=>'complete'
+                ]
+            );
 
             return $order;
         });
     }
+     private function getUsersByRoles(array $roles)
+    {
+        if (method_exists(User::class, 'scopeRole')) {
+            return User::role($roles)->get();
+        }
+
+        return User::whereIn('role', $roles)->get();
+    }
+
+    /**
+     * 📩 حفظ الإشعار في قاعدة البيانات وإرساله للمستخدمين عبر NotificationService
+     */
+    private function notifyUsers($users, string $title, string $message, string $type = 'shipment', array $extraData = [])
+    {
+        if (!$users || (is_countable($users) && count($users) === 0)) {
+            return;
+        }
+
+        if ($users instanceof User) {
+            $users = collect([$users]);
+        }
+
+        foreach ($users as $user) {
+            try {
+                // استدعاء NotificationService لتقوم بالحفظ في الداتا بيز والإرسال إلى Firebase معاً
+                $this->notificationService->send($user, $title, $message, $type, $extraData);
+            } catch (\Throwable $e) {
+                Log::error("Failed to send notification to user ID {$user->id}: " . $e->getMessage());
+            }
+        }
+    }
+
 //     public function complete($id, $producedQty)
 //     {
 //         $order = ProductionOrder::findOrFail($id);

@@ -34,12 +34,13 @@ return new class extends Migration
             
             // معرف الدفعة (shipment_item_id)
             $table->unsignedBigInteger('shipment_item_id'); 
+            // 💡 توحيد دقة الكميات إلى (16, 6) لاستيعاب الفروقات والكسور الدقيقة في الجرد
+            $table->decimal('old_quantity', 16, 6);     // الكمية بالنظام وقت الجرد
+            $table->decimal('actual_quantity', 16, 6);  // الكمية الفعلية المقاسة
+            $table->decimal('difference', 16, 6);       // الفرق (actual - old)
             
-            $table->decimal('old_quantity', 10, 2);    // الكمية بالنظام وقت الجرد
-            $table->decimal('actual_quantity', 10, 2); // الكمية الفعلية المقاسة
-            $table->decimal('difference', 10, 2);      // الفرق (actual - old)
-            $table->decimal('match_percentage', 5, 2); // نسبة التطابق %
-            
+            // 💡 نسبة التطابق % (5, 2 تسمح بـ 100.00%)
+            $table->decimal('match_percentage', 5, 2);
             $table->text('notes')->nullable(); // ملاحظات خاصة بالدفعة
             $table->timestamps();
 

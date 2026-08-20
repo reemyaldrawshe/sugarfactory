@@ -5,17 +5,32 @@ namespace App\Services\Warehouse;
 use App\Models\ProductionOrder;
 use App\Enums\ProductionStatusEnum;
 use App\Services\Production\ProductionLogService;
+use App\Services\NotificationService;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+
 use Illuminate\Support\Facades\DB;
+
 use Illuminate\Validation\ValidationException;
 use App\Models\ShipmentItem;
 use App\Models\ProductionOrderMaterial;
 
 class ProductionService
 {
-    public function __construct(
-        protected ProductionLogService $logService
-    ) {}
+    
+    // public function __construct(
+    //     protected ProductionLogService $logService
+    // ) {}
+ protected $logService;
+    protected $notificationService;
 
+    public function __construct(
+        ProductionLogService $logService,
+        NotificationService $notificationService
+    ) {
+        $this->logService = $logService;
+        $this->notificationService = $notificationService;
+    }
     /**
      * أمين المستودع يكبس زر "تأكيد تجهيز المواد"
      * هنا يتم تطبيق الـ FEFO وحجز المواد الثانوية من المستودع
@@ -126,9 +141,50 @@ return (float)$b->quantity_received - (float)$b->quantity_reserved;
             $order->materials()->update(['consumed_quantity' => DB::raw('required_quantity')]);
 
             $this->logService->log($order, 'sent_to_production', 'تم خروج جميع المواد فعلياً من المستودع وتحرير الحجوزات.');
+   $targetUsers = $this->getUsersByRoles(['admin', 'production']);
 
+            $this->notifyUsers(
+                $targetUsers,
+                'تم ارسال المواد للمستودع',
+                "تم ارسال المواد لامر الانتاج#{$id} وهو لبدأ التصنيع  الآن",
+                   'ProductionOrderService',
+                ['order_id' => $order->id,
+                'action'=>'sent_to_production'
+                ]
+            );
             return $order;
         });
+    }
+     private function getUsersByRoles(array $roles)
+    {
+        if (method_exists(User::class, 'scopeRole')) {
+            return User::role($roles)->get();
+        }
+
+        return User::whereIn('role', $roles)->get();
+    }
+
+    /**
+     * 📩 حفظ الإشعار في قاعدة البيانات وإرساله للمستخدمين عبر NotificationService
+     */
+    private function notifyUsers($users, string $title, string $message, string $type = 'shipment', array $extraData = [])
+    {
+        if (!$users || (is_countable($users) && count($users) === 0)) {
+            return;
+        }
+
+        if ($users instanceof User) {
+            $users = collect([$users]);
+        }
+
+        foreach ($users as $user) {
+            try {
+                // استدعاء NotificationService لتقوم بالحفظ في الداتا بيز والإرسال إلى Firebase معاً
+                $this->notificationService->send($user, $title, $message, $type, $extraData);
+            } catch (\Throwable $e) {
+                Log::error("Failed to send notification to user ID {$user->id}: " . $e->getMessage());
+            }
+        }
     }
 }
 

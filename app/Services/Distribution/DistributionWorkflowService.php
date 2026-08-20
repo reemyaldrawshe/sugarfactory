@@ -41,8 +41,10 @@ class DistributionWorkflowService
             $warehouseUsers,
             'طلب صرف مبيعات جديد',
             "وافق المدير على طلب المبيعات رقم #{$order->id} وهو جاهز للحجز والصرف",
-            'dist_approved',
-            ['distribution_order_id' => $order->id]
+            'distributionWorkflow',
+            ['distribution_order_id' => $order->id,
+             'action'=>'approveByManager'
+            ]
         );
 
         return $order;
@@ -72,8 +74,10 @@ class DistributionWorkflowService
                 $creator,
                 'تم رفض طلب المبيعات',
                 "تم رفض طلب المبيعات رقم #{$order->id} من قبل الإدارة",
-                'dist_rejected',
-                ['distribution_order_id' => $order->id]
+                'distributionWorkflow',
+            ['distribution_order_id' => $order->id,
+             'action'=>'rejectByManager'
+            ]
             );
         }
 
@@ -82,6 +86,9 @@ class DistributionWorkflowService
 
     /**
      * 3. حجز بضاعة المبيعات من المستودع (تطبيق خوارزمية FEFO)
+     */
+    /**
+     * 3. حجز المواد الخاصة بطلب المبيعات
      */
     public function reserveMaterials($orderId)
     {
@@ -99,39 +106,49 @@ class DistributionWorkflowService
                 
                 $quantityNeeded = (float) $orderItem->quantity;
 
+                // جلب الدفعات المتاحة للمادة وحساب الصافي (المستلم - المحجوز)
                 $availableBatches = ShipmentItem::query()
                     ->where('item_id', $orderItem->item_id)
-                    ->where('quantity_received', '>', 0)
+                    ->whereRaw('(quantity_received - quantity_reserved) > 0')
                     ->orderBy('expiry_date', 'asc') 
                     ->lockForUpdate() 
                     ->get();
 
-                $totalAvailable = $availableBatches->sum('quantity_received');
+                // التأكد من توفر الكميات الصافية المتاحة
+                $totalNetAvailable = $availableBatches->sum(function ($b) {
+                    return (float) $b->quantity_received - (float) $b->quantity_reserved;
+                });
 
-                if ($totalAvailable < $quantityNeeded) {
+                if ($totalNetAvailable < $quantityNeeded) {
                     throw ValidationException::withMessages([
-                        'inventory' => "الكمية المتوفرة في المستودع من مادة ({$orderItem->item->name}) غير كافية. المطلوب: {$quantityNeeded}، المتوفر: {$totalAvailable}"
+                        'inventory' => "الكمية المتوفرة في المستودع من مادة ({$orderItem->item->name}) غير كافية. المطلوب: {$quantityNeeded}، المتاح الصافي: {$totalNetAvailable}"
                     ]);
                 }
 
+                // سحب وحجز الكميات من الدفعات المتاحة
                 foreach ($availableBatches as $batch) {
                     
                     if ($quantityNeeded <= 0) {
                         break;
                     }
 
-                    $takeQuantity = min($batch->quantity_received, $quantityNeeded);
+                    $batchAvailable = (float) $batch->quantity_received - (float) $batch->quantity_reserved;
+                    $takeQuantity = min($batchAvailable, $quantityNeeded);
 
-                    $batch->decrement('quantity_received', $takeQuantity);
+                    if ($takeQuantity > 0) {
+                        // 1. زيادة الكمية المحجوزة في الدفعة
+                        $batch->increment('quantity_reserved', $takeQuantity);
 
-                    $order->batchAllocations()->create([
-                        'distribution_order_item_id' => $orderItem->id,
-                        'item_id'                    => $orderItem->item_id,
-                        'shipment_item_id'           => $batch->id,
-                        'allocated_quantity'         => $takeQuantity,
-                    ]);
+                        // 2. إنشاء سجل التخصيص لربطه بالطلب
+                        $order->batchAllocations()->create([
+                            'distribution_order_item_id' => $orderItem->id,
+                            'item_id'                    => $orderItem->item_id,
+                            'shipment_item_id'           => $batch->id,
+                            'allocated_quantity'         => $takeQuantity,
+                        ]);
 
-                    $quantityNeeded -= $takeQuantity;
+                        $quantityNeeded -= $takeQuantity;
+                    }
                 }
             }
 
@@ -146,8 +163,10 @@ class DistributionWorkflowService
                     $creator,
                     'تم تجهيز وحجز البضاعة',
                     "قام أمين المستودع بحجز وتجهيز المواد لطلب المبيعات رقم #{$order->id}",
-                    'dist_materials_reserved',
-                    ['distribution_order_id' => $order->id]
+                     'distributionWorkflow',
+            ['distribution_order_id' => $order->id,
+             'action'=>'reserveMaterials'
+            ]
                 );
             }
 
@@ -157,36 +176,156 @@ class DistributionWorkflowService
 
     /**
      * 4. خروج البضاعة من المستودع للتوصيل (Dispatched)
+     * (تأكيد الخصم الفعلي وتحرير الحجز)
      */
     public function dispatchOrder($orderId)
     {
-        $order = DistributionOrder::findOrFail($orderId);
+        return DB::transaction(function () use ($orderId) {
 
-        if ($order->status !== ProductionStatusEnum::DIST_MATERIALS_RESERVED->value) {
-            throw ValidationException::withMessages([
-                'status' => 'لا يمكن إرسال البضاعة للتوصيل إلا بعد حجز موادها من المستودع.'
+            $order = DistributionOrder::with('batchAllocations.shipmentItem')->findOrFail($orderId);
+
+            if ($order->status !== ProductionStatusEnum::DIST_MATERIALS_RESERVED->value) {
+                throw ValidationException::withMessages([
+                    'status' => 'لا يمكن إرسال البضاعة للتوصيل إلا بعد حجز موادها من المستودع.'
+                ]);
+            }
+
+            // الخصم الفعلي وتحرير الحجز من الدفعات المحجوزة سابقاً
+            foreach ($order->batchAllocations as $allocation) {
+                $batch = $allocation->shipmentItem;
+
+                if ($batch) {
+                    $batch->decrement('quantity_received', $allocation->allocated_quantity);
+                    $batch->decrement('quantity_reserved', $allocation->allocated_quantity);
+                }
+            }
+
+            $order->update([
+                'status'        => ProductionStatusEnum::DIST_DISPATCHED->value,
+                'dispatched_at' => now(),
             ]);
-        }
 
-        $order->update([
-            'status'        => ProductionStatusEnum::DIST_DISPATCHED->value,
-            'dispatched_at' => now(),
-        ]);
+            // 🔔 إشعار لقسم المبيعات بأن البضاعة خرجت للتوصيل
+            $creator = User::find($order->user_id);
+            if ($creator) {
+                $this->notifyUsers(
+                    $creator,
+                    'الطلب في الطريق للتوصيل',
+                    "تم شحن وخروج البضاعة لطلب المبيعات رقم #{$order->id} وهي في الطريق للعميل",
+                     'distributionWorkflow',
+            ['distribution_order_id' => $order->id,
+             'action'=>'dispatchOrder'
+            ]
+                );
+            }
 
-        // 🔔 إشعار لقسم المبيعات بأن البضاعة خرجت للتوصيل
-        $creator = User::find($order->user_id);
-        if ($creator) {
-            $this->notifyUsers(
-                $creator,
-                'الطلب في الطريق للتوصيل',
-                "تم شحن وخروج البضاعة لطلب المبيعات رقم #{$order->id} وهي في الطريق للعميل",
-                'dist_dispatched',
-                ['distribution_order_id' => $order->id]
-            );
-        }
-
-        return $order;
+            return $order;
+        });
     }
+    // public function reserveMaterials($orderId)
+    // {
+    //     return DB::transaction(function () use ($orderId) {
+            
+    //         $order = DistributionOrder::with('items.item')->findOrFail($orderId);
+
+    //         if ($order->status !== ProductionStatusEnum::DIST_APPROVED->value) {
+    //             throw ValidationException::withMessages([
+    //                 'status' => 'عذراً، يجب أن يحصل الطلب على موافقة الإدارة أولاً لتتمكن من حجز مواده.'
+    //             ]);
+    //         }
+
+    //         foreach ($order->items as $orderItem) {
+                
+    //             $quantityNeeded = (float) $orderItem->quantity;
+
+    //             $availableBatches = ShipmentItem::query()
+    //                 ->where('item_id', $orderItem->item_id)
+    //                 ->where('quantity_received', '>', 0)
+    //                 ->orderBy('expiry_date', 'asc') 
+    //                 ->lockForUpdate() 
+    //                 ->get();
+
+    //             $totalAvailable = $availableBatches->sum('quantity_received');
+
+    //             if ($totalAvailable < $quantityNeeded) {
+    //                 throw ValidationException::withMessages([
+    //                     'inventory' => "الكمية المتوفرة في المستودع من مادة ({$orderItem->item->name}) غير كافية. المطلوب: {$quantityNeeded}، المتوفر: {$totalAvailable}"
+    //                 ]);
+    //             }
+
+    //             foreach ($availableBatches as $batch) {
+                    
+    //                 if ($quantityNeeded <= 0) {
+    //                     break;
+    //                 }
+
+    //                 $takeQuantity = min($batch->quantity_received, $quantityNeeded);
+
+    //                 $batch->decrement('quantity_received', $takeQuantity);
+
+    //                 $order->batchAllocations()->create([
+    //                     'distribution_order_item_id' => $orderItem->id,
+    //                     'item_id'                    => $orderItem->item_id,
+    //                     'shipment_item_id'           => $batch->id,
+    //                     'allocated_quantity'         => $takeQuantity,
+    //                 ]);
+
+    //                 $quantityNeeded -= $takeQuantity;
+    //             }
+    //         }
+
+    //         $order->update([
+    //             'status' => ProductionStatusEnum::DIST_MATERIALS_RESERVED->value,
+    //         ]);
+
+    //         // 🔔 إشعار لقسم المبيعات/مُنشئ الطلب بتجهيز وحجز المواد بالمستودع
+    //         $creator = User::find($order->user_id);
+    //         if ($creator) {
+    //             $this->notifyUsers(
+    //                 $creator,
+    //                 'تم تجهيز وحجز البضاعة',
+    //                 "قام أمين المستودع بحجز وتجهيز المواد لطلب المبيعات رقم #{$order->id}",
+    //                 'dist_materials_reserved',
+    //                 ['distribution_order_id' => $order->id]
+    //             );
+    //         }
+
+    //         return $order->load('batchAllocations.shipmentItem', 'items.item');
+    //     });
+    // }
+
+    // /**
+    //  * 4. خروج البضاعة من المستودع للتوصيل (Dispatched)
+    //  */
+    // public function dispatchOrder($orderId)
+    // {
+    //     $order = DistributionOrder::findOrFail($orderId);
+
+    //     if ($order->status !== ProductionStatusEnum::DIST_MATERIALS_RESERVED->value) {
+    //         throw ValidationException::withMessages([
+    //             'status' => 'لا يمكن إرسال البضاعة للتوصيل إلا بعد حجز موادها من المستودع.'
+    //         ]);
+    //     }
+
+    //     $order->update([
+    //         'status'        => ProductionStatusEnum::DIST_DISPATCHED->value,
+    //         'dispatched_at' => now(),
+    //     ]);
+
+    //     // 🔔 إشعار لقسم المبيعات بأن البضاعة خرجت للتوصيل
+    //     $creator = User::find($order->user_id);
+    //     if ($creator) {
+    //         $this->notifyUsers(
+    //             $creator,
+    //             'الطلب في الطريق للتوصيل',
+    //             "تم شحن وخروج البضاعة لطلب المبيعات رقم #{$order->id} وهي في الطريق للعميل",
+    //             'dist_dispatched',
+    //             ['distribution_order_id' => $order->id]
+    //         );
+    //     }
+
+    //     return $order;
+    // }
 
     /**
      * 5. تأكيد استلام العميل للطلبية وإتمام البيع (Sold)
@@ -214,8 +353,10 @@ class DistributionWorkflowService
                 $financeAndAdmin,
                 'إتمام عملية بيع',
                 "تم تأكيد استلام العميل وإتمام عملية البيع للطلب رقم #{$order->id}",
-                'dist_sold',
-                ['distribution_order_id' => $order->id]
+                 'distributionWorkflow',
+            ['distribution_order_id' => $order->id,
+             'action'=>'confirmSale'
+            ]
             );
 
             return $order;

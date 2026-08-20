@@ -13,155 +13,80 @@ use Illuminate\Database\Seeder;
 
 class ProductionOrderSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        /*
-        |--------------------------------------------------------------------------
-        | تجهيز البيانات الأساسية
-        |--------------------------------------------------------------------------
-        */
-        $finalItem = Item::first();
+        $finalItem = Item::where('name', 'سكر أبيض')->first();
         $warehouseUser = User::first();
 
-        /*
-        |--------------------------------------------------------------------------
-        | محاكاة الطلبات (تشمل الآن قسم المبيعات والإدارة)
-        |--------------------------------------------------------------------------
-        */
+        if (!$finalItem) {
+            return;
+        }
+
         $orders = [
-            // 1. طلبات قسم المبيعات
             [
                 'quantity' => 100,
                 'produced_quantity' => 0,
-                'status' => 'pending', 
+                'status' => 'pending',
                 'notes' => 'طلب جديد من المبيعات بانتظار موافقة الإدارة',
             ],
             [
                 'quantity' => 30,
                 'produced_quantity' => 0,
-                // التعديل هنا: استخدام القيمة المطابقة للـ Enum تماماً
-                'status' => 'rejected_by_manager', 
-                'notes' => 'طلب مبيعات تم رفضه من قبل الإدارة',
+                'status' => 'rejected_by_manager',
+                'notes' => 'طلب مبيعات تم رفضه من قبل الإدارة لعدم كفاية السكر الخام',
             ],
-            
-            // 2. طلبات الإدارة والمستودع
             [
                 'quantity' => 50,
                 'produced_quantity' => 0,
                 'status' => 'approved_by_manager',
-                'notes' => 'موافق عليه، بانتظار تحضير أمين المستودع',
+                'notes' => 'موافق عليه من الإدارة، بانتظار تحضير المواد وحجزها',
             ],
             [
                 'quantity' => 60,
                 'produced_quantity' => 0,
                 'status' => 'materials_reserved',
-                'notes' => 'تم حجز المواد من المستودع',
+                'notes' => 'تم حجز كامل مواد التشغيل والباقات لإنتاج 60 طن',
             ],
-
-            // 3. طلبات قسم الإنتاج
             [
                 'quantity' => 150,
-                'produced_quantity' => 20, 
+                'produced_quantity' => 20,
                 'status' => 'sent_to_production',
-                'notes' => 'الطلب وصل لقسم الإنتاج (إنتاج جزئي)',
+                'notes' => 'تم استلام المواد في خط الإنتاج وبدأت التصفية (تم إنتاج 20 طن)',
             ],
             [
                 'quantity' => 80,
-                'produced_quantity' => 45, 
+                'produced_quantity' => 45,
                 'status' => 'in_production',
-                'notes' => 'العمل جارٍ في صالة الإنتاج',
+                'notes' => 'العمل جارٍ في أجهزة التبخير والتجفيف (تم إنتاج 45 طن)',
             ],
             [
                 'quantity' => 70,
-                'produced_quantity' => 30, 
+                'produced_quantity' => 30,
                 'status' => 'paused',
-                'notes' => 'الإنتاج متوقف مؤقتاً لمشكلة تقنية',
+                'notes' => 'الإنتاج متوقف مؤقتاً لصيانة غلاية التبخير',
             ],
             [
                 'quantity' => 200,
-                'produced_quantity' => 200, 
+                'produced_quantity' => 200,
                 'status' => 'completed',
-                'notes' => 'تم الإنتاج بالكامل وتسليم الكميات',
+                'notes' => 'تم إنتاج وتعبئة 200 طن سكر أبيض وتسليمها للمستودع النهائي',
             ],
         ];
-        // $orders = [
-        //     // 1. طلبات قسم المبيعات
-        //     [
-        //         'quantity' => 100,
-        //         'produced_quantity' => 0,
-        //         'status' => 'pending', 
-        //         'notes' => 'طلب جديد من المبيعات بانتظار موافقة الإدارة',
-        //     ],
-        //     [
-        //         'quantity' => 30,
-        //         'produced_quantity' => 0,
-        //         'status' => 'rejected', 
-        //         'notes' => 'طلب مبيعات تم رفضه من قبل الإدارة',
-        //     ],
-            
-        //     // 2. طلبات الإدارة والمستودع
-        //     [
-        //         'quantity' => 50,
-        //         'produced_quantity' => 0,
-        //         'status' => 'approved_by_manager',
-        //         'notes' => 'موافق عليه، بانتظار تحضير أمين المستودع',
-        //     ],
-        //     [
-        //         'quantity' => 60,
-        //         'produced_quantity' => 0,
-        //         'status' => 'materials_reserved',
-        //         'notes' => 'تم حجز المواد من المستودع',
-        //     ],
 
-        //     // 3. طلبات قسم الإنتاج
-        //     [
-        //         'quantity' => 150,
-        //         'produced_quantity' => 20, 
-        //         'status' => 'sent_to_production',
-        //         'notes' => 'الطلب وصل لقسم الإنتاج (إنتاج جزئي)',
-        //     ],
-        //     [
-        //         'quantity' => 80,
-        //         'produced_quantity' => 45, 
-        //         'status' => 'in_production',
-        //         'notes' => 'العمل جارٍ في صالة الإنتاج',
-        //     ],
-        //     [
-        //         'quantity' => 70,
-        //         'produced_quantity' => 30, 
-        //         'status' => 'paused',
-        //         'notes' => 'الإنتاج متوقف مؤقتاً لمشكلة تقنية',
-        //     ],
-        //     [
-        //         'quantity' => 200,
-        //         'produced_quantity' => 200, 
-        //         'status' => 'completed',
-        //         'notes' => 'تم الإنتاج بالكامل وتسليم الكميات',
-        //     ],
-        // ];
+        $boms = BOM::where('final_item_id', $finalItem->id)->get();
 
         foreach ($orders as $data) {
-            
-            // إنشاء الطلب
             $order = ProductionOrder::create([
-                'item_id' => $finalItem->id,
-                'quantity' => $data['quantity'],
+                'item_id'           => $finalItem->id,
+                'quantity'          => $data['quantity'],
                 'produced_quantity' => $data['produced_quantity'],
-                'status' => $data['status'],
-                'notes' => $data['notes'],
-                'warehouse_id' => 2, // تأكد أن هذا الـ ID موجود فعلياً في جدول المستودعات
-                'production_id' => 6, // تأكد أن هذا الـ ID موجود في جدول جهات الإنتاج
+                'status'            => $data['status'],
+                'notes'             => $data['notes'],
+                'warehouse_id'      => 1,
+                'production_id'     => 1,
             ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | حجز المواد (فقط للطلبات التي تجاوزت الإدارة وبدأ العمل عليها)
-            |--------------------------------------------------------------------------
-            */
-            $isPreparedOrBeyond = in_array($data['status'], [
+            $isReservedOrBeyond = in_array($data['status'], [
                 'materials_reserved',
                 'sent_to_production',
                 'in_production',
@@ -169,25 +94,26 @@ class ProductionOrderSeeder extends Seeder
                 'completed'
             ]);
 
-            if ($isPreparedOrBeyond) {
-
-                $boms = BOM::where('final_item_id', $finalItem->id)->get();
-
+            if ($isReservedOrBeyond) {
                 foreach ($boms as $bom) {
-                    
-                    $required = $bom->basic_item_quantity * $order->quantity;
                     $batch = ShipmentItem::where('item_id', $bom->basic_item_id)->first();
 
                     if (!$batch) {
                         continue;
                     }
 
+                    // الكمية المطلوبة كاملة بناءً على كمية أوردر الإنتاج
+                    $requiredQuantity = $bom->basic_item_quantity * $order->quantity;
+
+                    // حساب الكمية المستهلكة فعلياً بناءً على ما تم إنتاجه حتى الآن
+                    $consumedQuantity = $bom->basic_item_quantity * $order->produced_quantity;
+
                     ProductionOrderMaterial::create([
                         'production_order_id' => $order->id,
-                        'item_id' => $bom->basic_item_id,
-                        'shipment_item_id' => $batch->id,
-                        'required_quantity' => $required,
-                        'consumed_quantity' => min($required, 100),
+                        'item_id'             => $bom->basic_item_id,
+                        'shipment_item_id'    => $batch->id,
+                        'required_quantity'   => $requiredQuantity,
+                        'consumed_quantity'   => $consumedQuantity,
                     ]);
                 }
             }
@@ -195,14 +121,12 @@ class ProductionOrderSeeder extends Seeder
 
         /*
         |--------------------------------------------------------------------------
-        | إضافة سجلات التتبع (Tracking Logs) للطلبات المرسلة للإنتاج
+        | إضافة سجلات التتبع (Tracking Logs) للمواد المصروفة للإنتاج
         |--------------------------------------------------------------------------
         */
         $ordersWithMaterials = ProductionOrder::with(['materials.item'])->get();
 
         foreach ($ordersWithMaterials as $order) {
-
-            // تم تصحيح مسميات الحالات هنا لتتوافق مع الـ Enums الفعلية التي نستخدمها
             $reachedProduction = in_array($order->status, [
                 'sent_to_production',
                 'in_production',
@@ -215,25 +139,254 @@ class ProductionOrderSeeder extends Seeder
             }
 
             foreach ($order->materials as $material) {
+                if ($material->consumed_quantity <= 0) {
+                    continue;
+                }
 
                 ItemTrackingLog::create([
-                    'type' => 'صرف',
-                    'trackable_id' => $order->id,
-                    'trackable_type' => ProductionOrder::class,
-                    'status' => $order->status,
-                    'item_id' => $material->item_id,
-                    'item_name' => $material->item->name ?? 'مادة غير معروفة',
-                    'quantity' => $material->consumed_quantity,
-                    'shipment_id' => null,
-                    'sent_from_role' => 'warehouse',
-                    'sent_from_user_name' => $warehouseUser->name ?? 'أمين المستودع',
-                    'sent_from_user_id' => $warehouseUser->id ?? 1,
-                    'sent_to_role' => 'production',
-                    'sent_to_user_name' => 'Production Department',
-                    'sent_to_user_id' => 0,
-                    'notes' => "Materials issued for production order #{$order->id}",
+                    'type'                => 'صرف',
+                    'trackable_id'        => $order->id,
+                    'trackable_type'      => ProductionOrder::class,
+                    'status'              => $order->status,
+                    'item_id'             => $material->item_id,
+                    'item_name'           => $material->item->name ?? 'مادة خام',
+                    'quantity'            => $material->consumed_quantity,
+                    'shipment_id'         => null,
+                    'sent_from_role'      => 'warehouse',
+                    'sent_from_user_name' => $warehouseUser->name ?? 'أمين مستودع المواد الخام',
+                    'sent_from_user_id'   => $warehouseUser->id ?? 1,
+                    'sent_to_role'        => 'production',
+                    'sent_to_user_name'   => 'قسم التشغيل والإنتاج',
+                    'sent_to_user_id'     => 2,
+                    'notes'               => "صرف مواد أولية لطلب إنتاج رقم #{$order->id}",
                 ]);
             }
         }
     }
 }
+// class ProductionOrderSeeder extends Seeder
+// {
+//     /**
+//      * Run the database seeds.
+//      */
+//     public function run(): void
+//     {
+//         /*
+//         |--------------------------------------------------------------------------
+//         | تجهيز البيانات الأساسية
+//         |--------------------------------------------------------------------------
+//         */
+//         $finalItem = Item::first();
+//         $warehouseUser = User::first();
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | محاكاة الطلبات (تشمل الآن قسم المبيعات والإدارة)
+//         |--------------------------------------------------------------------------
+//         */
+//         $orders = [
+//             // 1. طلبات قسم المبيعات
+//             [
+//                 'quantity' => 100,
+//                 'produced_quantity' => 0,
+//                 'status' => 'pending', 
+//                 'notes' => 'طلب جديد من المبيعات بانتظار موافقة الإدارة',
+//             ],
+//             [
+//                 'quantity' => 30,
+//                 'produced_quantity' => 0,
+//                 // التعديل هنا: استخدام القيمة المطابقة للـ Enum تماماً
+//                 'status' => 'rejected_by_manager', 
+//                 'notes' => 'طلب مبيعات تم رفضه من قبل الإدارة',
+//             ],
+            
+//             // 2. طلبات الإدارة والمستودع
+//             [
+//                 'quantity' => 50,
+//                 'produced_quantity' => 0,
+//                 'status' => 'approved_by_manager',
+//                 'notes' => 'موافق عليه، بانتظار تحضير أمين المستودع',
+//             ],
+//             [
+//                 'quantity' => 60,
+//                 'produced_quantity' => 0,
+//                 'status' => 'materials_reserved',
+//                 'notes' => 'تم حجز المواد من المستودع',
+//             ],
+
+//             // 3. طلبات قسم الإنتاج
+//             [
+//                 'quantity' => 150,
+//                 'produced_quantity' => 20, 
+//                 'status' => 'sent_to_production',
+//                 'notes' => 'الطلب وصل لقسم الإنتاج (إنتاج جزئي)',
+//             ],
+//             [
+//                 'quantity' => 80,
+//                 'produced_quantity' => 45, 
+//                 'status' => 'in_production',
+//                 'notes' => 'العمل جارٍ في صالة الإنتاج',
+//             ],
+//             [
+//                 'quantity' => 70,
+//                 'produced_quantity' => 30, 
+//                 'status' => 'paused',
+//                 'notes' => 'الإنتاج متوقف مؤقتاً لمشكلة تقنية',
+//             ],
+//             [
+//                 'quantity' => 200,
+//                 'produced_quantity' => 200, 
+//                 'status' => 'completed',
+//                 'notes' => 'تم الإنتاج بالكامل وتسليم الكميات',
+//             ],
+//         ];
+//         // $orders = [
+//         //     // 1. طلبات قسم المبيعات
+//         //     [
+//         //         'quantity' => 100,
+//         //         'produced_quantity' => 0,
+//         //         'status' => 'pending', 
+//         //         'notes' => 'طلب جديد من المبيعات بانتظار موافقة الإدارة',
+//         //     ],
+//         //     [
+//         //         'quantity' => 30,
+//         //         'produced_quantity' => 0,
+//         //         'status' => 'rejected', 
+//         //         'notes' => 'طلب مبيعات تم رفضه من قبل الإدارة',
+//         //     ],
+            
+//         //     // 2. طلبات الإدارة والمستودع
+//         //     [
+//         //         'quantity' => 50,
+//         //         'produced_quantity' => 0,
+//         //         'status' => 'approved_by_manager',
+//         //         'notes' => 'موافق عليه، بانتظار تحضير أمين المستودع',
+//         //     ],
+//         //     [
+//         //         'quantity' => 60,
+//         //         'produced_quantity' => 0,
+//         //         'status' => 'materials_reserved',
+//         //         'notes' => 'تم حجز المواد من المستودع',
+//         //     ],
+
+//         //     // 3. طلبات قسم الإنتاج
+//         //     [
+//         //         'quantity' => 150,
+//         //         'produced_quantity' => 20, 
+//         //         'status' => 'sent_to_production',
+//         //         'notes' => 'الطلب وصل لقسم الإنتاج (إنتاج جزئي)',
+//         //     ],
+//         //     [
+//         //         'quantity' => 80,
+//         //         'produced_quantity' => 45, 
+//         //         'status' => 'in_production',
+//         //         'notes' => 'العمل جارٍ في صالة الإنتاج',
+//         //     ],
+//         //     [
+//         //         'quantity' => 70,
+//         //         'produced_quantity' => 30, 
+//         //         'status' => 'paused',
+//         //         'notes' => 'الإنتاج متوقف مؤقتاً لمشكلة تقنية',
+//         //     ],
+//         //     [
+//         //         'quantity' => 200,
+//         //         'produced_quantity' => 200, 
+//         //         'status' => 'completed',
+//         //         'notes' => 'تم الإنتاج بالكامل وتسليم الكميات',
+//         //     ],
+//         // ];
+
+//         foreach ($orders as $data) {
+            
+//             // إنشاء الطلب
+//             $order = ProductionOrder::create([
+//                 'item_id' => $finalItem->id,
+//                 'quantity' => $data['quantity'],
+//                 'produced_quantity' => $data['produced_quantity'],
+//                 'status' => $data['status'],
+//                 'notes' => $data['notes'],
+//                 'warehouse_id' => 2, // تأكد أن هذا الـ ID موجود فعلياً في جدول المستودعات
+//                 'production_id' => 6, // تأكد أن هذا الـ ID موجود في جدول جهات الإنتاج
+//             ]);
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | حجز المواد (فقط للطلبات التي تجاوزت الإدارة وبدأ العمل عليها)
+//             |--------------------------------------------------------------------------
+//             */
+//             $isPreparedOrBeyond = in_array($data['status'], [
+//                 'materials_reserved',
+//                 'sent_to_production',
+//                 'in_production',
+//                 'paused',
+//                 'completed'
+//             ]);
+
+//             if ($isPreparedOrBeyond) {
+
+//                 $boms = BOM::where('final_item_id', $finalItem->id)->get();
+
+//                 foreach ($boms as $bom) {
+                    
+//                     $required = $bom->basic_item_quantity * $order->quantity;
+//                     $batch = ShipmentItem::where('item_id', $bom->basic_item_id)->first();
+
+//                     if (!$batch) {
+//                         continue;
+//                     }
+
+//                     ProductionOrderMaterial::create([
+//                         'production_order_id' => $order->id,
+//                         'item_id' => $bom->basic_item_id,
+//                         'shipment_item_id' => $batch->id,
+//                         'required_quantity' => $required,
+//                         'consumed_quantity' => min($required, 100),
+//                     ]);
+//                 }
+//             }
+//         }
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | إضافة سجلات التتبع (Tracking Logs) للطلبات المرسلة للإنتاج
+//         |--------------------------------------------------------------------------
+//         */
+//         $ordersWithMaterials = ProductionOrder::with(['materials.item'])->get();
+
+//         foreach ($ordersWithMaterials as $order) {
+
+//             // تم تصحيح مسميات الحالات هنا لتتوافق مع الـ Enums الفعلية التي نستخدمها
+//             $reachedProduction = in_array($order->status, [
+//                 'sent_to_production',
+//                 'in_production',
+//                 'paused',
+//                 'completed'
+//             ]);
+
+//             if (!$reachedProduction) {
+//                 continue;
+//             }
+
+//             foreach ($order->materials as $material) {
+
+//                 ItemTrackingLog::create([
+//                     'type' => 'صرف',
+//                     'trackable_id' => $order->id,
+//                     'trackable_type' => ProductionOrder::class,
+//                     'status' => $order->status,
+//                     'item_id' => $material->item_id,
+//                     'item_name' => $material->item->name ?? 'مادة غير معروفة',
+//                     'quantity' => $material->consumed_quantity,
+//                     'shipment_id' => null,
+//                     'sent_from_role' => 'warehouse',
+//                     'sent_from_user_name' => $warehouseUser->name ?? 'أمين المستودع',
+//                     'sent_from_user_id' => $warehouseUser->id ?? 1,
+//                     'sent_to_role' => 'production',
+//                     'sent_to_user_name' => 'Production Department',
+//                     'sent_to_user_id' => 0,
+//                     'notes' => "Materials issued for production order #{$order->id}",
+//                 ]);
+//             }
+//         }
+//     }
+// }

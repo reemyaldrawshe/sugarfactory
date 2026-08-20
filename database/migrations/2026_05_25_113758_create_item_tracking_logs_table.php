@@ -23,8 +23,8 @@ return new class extends Migration
             // Item info
             $table->unsignedBigInteger('item_id');
             $table->string('item_name');
-            $table->decimal('quantity', 10, 2);
-
+            //$table->decimal('quantity', 10, 2);
+$table->decimal('quantity', 16, 6);
             // Shipment info (optional for non-shipment types)
             $table->unsignedBigInteger('shipment_id')->nullable();
 

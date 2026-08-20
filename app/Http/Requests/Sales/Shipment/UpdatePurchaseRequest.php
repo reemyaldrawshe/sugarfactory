@@ -37,19 +37,23 @@ class UpdatePurchaseRequest extends BaseFormRequest
     {
         return [
             'shipment_id'               => ['required', 'exists:shipments,id'],
-            'supplier'        => ['required', 'string', 'max:255'],
-            'supplier_number' => ['required', 'string', 'max:50'],
+            'supplier'                  => ['required', 'string', 'max:255'],
+            'supplier_number'           => ['required', 'string', 'max:50'],
+            
             // تحقق العناصر (الأسعار والكميات لكل منتج)
             'items'                     => ['required', 'array'],
             'items.*.item_id'           => ['required', 'exists:shipment_items,id'],
-            'items.*.quantity_received' => ['required', 'integer', 'min:0'],
-            'items.*.price'             => ['required', 'numeric', 'min:0'], // السعر لكل منتج سيبقى هنا
+            
+            // 💡 تغيير integer إلى numeric ليقبل الكسر 0.0001000
+            'items.*.quantity_received' => ['required', 'numeric', 'min:0', 'regex:/^\d+(\.\d+)?$/'],
+            'items.*.price'             => ['required', 'numeric', 'min:0', 'regex:/^\d+(\.\d+)?$/'],
+            
             'items.*.expiry_date'       => ['nullable', 'date'],
             'items.*.note'              => ['nullable', 'string'],
             
-            // 💡 التعديل الجديد: مصفوفة صور الفاتورة للطلب كاملاً
+            // مصفوفة صور الفاتورة
             'invoice_images'            => ['nullable', 'array'],
-            'invoice_images.*'          => ['image', 'mimes:jpeg,png,jpg', 'max:2048'], // تحقق من نوع وحجم كل صورة
+            'invoice_images.*'          => ['image', 'mimes:jpeg,png,jpg', 'max:2048'],
         ];
     }
 }

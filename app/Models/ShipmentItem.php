@@ -24,9 +24,9 @@ class ShipmentItem extends Model implements HasMedia
     protected $casts = [
         'price_history' => 'array',
         'quantity_history' => 'array',
-        'expiry_date' => 'date',
-        'quantity_reserved' => 'integer', // تحويل القيمة إلى رقم صحيح
-
+        'expiry_date'       => 'date', // 👈 أضف التنسيق الصريح هنا
+'quantity_received' => 'float', // 👈 تغيير إلى float
+    'quantity_reserved' => 'float',
     ];
     // 2. دالة الـ Accessor لحساب حالة الصلاحية ديناميكياً
     public function getExpiryStatusAttribute(): string
@@ -110,6 +110,6 @@ public function getUnitPriceAttribute(): float
 
     public function getTotalPriceAttribute(): float
     {
-        return (float) ($this->quantity_received * $this->price);
+        return (float) ($this->quantity_received * $this->unit_price);
     }
 }

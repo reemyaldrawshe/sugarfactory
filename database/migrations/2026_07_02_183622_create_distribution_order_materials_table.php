@@ -14,7 +14,8 @@ return new class extends Migration
             $table->foreignId('distribution_order_item_id')->constrained('distribution_order_items')->onDelete('cascade');
             $table->foreignId('item_id')->constrained('items');
             $table->foreignId('shipment_item_id')->constrained('shipment_items')->comment('الدفتة المحددة المأخوذ منها الصنف بناء على FEFO');
-            $table->decimal('allocated_quantity', 12, 3);
+           // $table->decimal('allocated_quantity', 12, 3);
+            $table->decimal('allocated_quantity', 16, 6);
             $table->timestamps();
         });
     }

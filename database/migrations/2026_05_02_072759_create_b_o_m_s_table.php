@@ -21,8 +21,9 @@ return new class extends Migration
                 ->constrained('items')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
-            $table->integer('basic_item_quantity')->default(1);
-            $table->integer('final_item_quantity')->default(1);
+// 💡 تعديل الحقول لتستوعب الكسور الدقيقة جداً (حتى 6 خانات عشرية)
+    $table->decimal('basic_item_quantity', 16, 6)->default(1.000000);
+    $table->decimal('final_item_quantity', 16, 6)->default(1.000000);
             $table->boolean('is_primary')->default(false);
             $table->timestamps();
         });

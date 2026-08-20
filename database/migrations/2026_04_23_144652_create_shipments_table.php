@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('supplier_number')->nullable();
             $table->date('received_at');
             $table->string('status');
-            $table->decimal('total_price', 15, 2)->default(0); // أضف هذا السطر
-            $table->foreignId('warehouse_id')->constrained('users');
+$table->decimal('total_price', 16, 4)->default(0.0000);       
+     $table->foreignId('warehouse_id')->constrained('users');
             $table->foreignId('admin_approved_by')->nullable()->constrained('users');
             $table->timestamp('admin_approved_at')->nullable();
             $table->foreignId('paid_by')->nullable()->constrained('users');

@@ -23,11 +23,11 @@ return new class extends Migration
         ->constrained('production_orders')
         ->cascadeOnDelete();    
             $table->foreignId('item_id')->constrained()->cascadeOnDelete();
-            $table->integer('quantity_required');
-            $table->integer('quantity_received')->default(0);
+        $table->decimal('quantity_required', 16, 6);
+    $table->decimal('quantity_received', 16, 6)->default(0.000000);
             $table->decimal('price', 10, 2)->nullable();
             $table->decimal('unit_price', 10, 2)->nullable();
-            $table->integer('quantity_reserved')->default(0);
+$table->decimal('quantity_reserved', 16, 6)->default(0.000000);
             $table->date('expiry_date')->nullable();
             $table->string('invoice_image')->nullable();
             $table->string('lab_test_file')->nullable();

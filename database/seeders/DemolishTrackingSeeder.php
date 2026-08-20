@@ -13,43 +13,79 @@ class DemolishTrackingSeeder extends Seeder
     {
         $warehouseUser = User::first();
 
-        $orders = DemolishOrder::with('item')->get();
+        // جلب طلبات الإتلاف المنفذة أو الموافَق عليها فقط لتسجيل حركة المخزون
+        $executedOrders = DemolishOrder::with('item')
+            ->whereIn('status', ['approved', 'completed'])
+            ->get();
 
-        foreach ($orders as $order) {
+        foreach ($executedOrders as $order) {
+            if (!$order->item) {
+                continue;
+            }
 
             ItemTrackingLog::create([
-
-                'type' => 'اتلاف',
-
-                'trackable_id' => $order->id,
-
-                'trackable_type' => DemolishOrder::class,
-
-                'status' => $order->status,
-
-                'item_id' => $order->item_id,
-
-                'item_name' => $order->item->name,
-
-                'quantity' => $order->quantity,
-
-                'shipment_id' => $order->shipment_id,
-
-                'sent_from_role' => 'warehouse',
-
-                'sent_from_user_name' => $warehouseUser->name,
-
-                'sent_from_user_id' => $warehouseUser->id,
-
-                'sent_to_role' => 'demolish',
-
-                'sent_to_user_name' => 'Demolish Department',
-
-                'sent_to_user_id' => 0,
-
-                'notes' =>
-                    "Demolish order #{$order->id}",
+                'type'                => 'اتلاف',
+                'trackable_id'        => $order->id,
+                'trackable_type'      => DemolishOrder::class,
+                'status'              => $order->status,
+                'item_id'             => $order->item_id,
+                'item_name'           => $order->item->name,
+                'quantity'            => $order->quantity,
+                'shipment_id'         => $order->shipment_id,
+                'sent_from_role'      => 'warehouse',
+                'sent_from_user_name' => $warehouseUser->name ?? 'أمين المستودع',
+                'sent_from_user_id'   => $warehouseUser->id ?? 1,
+                'sent_to_role'        => 'demolish',
+                'sent_to_user_name'   => 'قسم الإتلاف ومعالجة الهوالك',
+                'sent_to_user_id'     => 0,
+                'notes'               => "إسقاط مخزني بموجب أمر إتلاف رقم #{$order->id} - السبب: {$order->reason}",
             ]);
         }
     }
 }
+// class DemolishTrackingSeeder extends Seeder
+// {
+//     public function run(): void
+//     {
+//         $warehouseUser = User::first();
+
+//         $orders = DemolishOrder::with('item')->get();
+
+//         foreach ($orders as $order) {
+
+//             ItemTrackingLog::create([
+
+//                 'type' => 'اتلاف',
+
+//                 'trackable_id' => $order->id,
+
+//                 'trackable_type' => DemolishOrder::class,
+
+//                 'status' => $order->status,
+
+//                 'item_id' => $order->item_id,
+
+//                 'item_name' => $order->item->name,
+
+//                 'quantity' => $order->quantity,
+
+//                 'shipment_id' => $order->shipment_id,
+
+//                 'sent_from_role' => 'warehouse',
+
+//                 'sent_from_user_name' => $warehouseUser->name,
+
+//                 'sent_from_user_id' => $warehouseUser->id,
+
+//                 'sent_to_role' => 'demolish',
+
+//                 'sent_to_user_name' => 'Demolish Department',
+
+//                 'sent_to_user_id' => 0,
+
+//                 'notes' =>
+//                     "Demolish order #{$order->id}",
+//             ]);
+//         }
+//     }
+// }

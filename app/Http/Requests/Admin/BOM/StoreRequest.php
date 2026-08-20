@@ -15,14 +15,15 @@ class StoreRequest extends BaseFormRequest
     {
         return [
             'final_item_id' => 'required|exists:items,id',
-            // الكمية المتوقع إنتاجها من هذه الخلطة كاملة
-            'final_item_quantity' => 'required|integer|min:1', 
+            // قبول أرقام عشرية أكبر من الصفر للكمية المنتجة
+            'final_item_quantity' => 'required|numeric|gt:0',
 
             'items' => 'required|array|min:1',
             'items.*.basic_item_id' => 'required|exists:items,id|different:final_item_id',
-            'items.*.basic_item_quantity' => 'required|integer|min:1',
+            // قبول أرقام عشرية أكبر من الصفر لكميات المواد الأولية
+            'items.*.basic_item_quantity' => 'required|numeric|gt:0',
             // تحديد إذا كانت المادة أساسية أم لا
-            'items.*.is_primary' => 'required|boolean', 
+            'items.*.is_primary' => 'required|boolean',
         ];
     }
 
